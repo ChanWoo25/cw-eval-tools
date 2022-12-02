@@ -1,0 +1,13 @@
+Datasets:
+  boxes_6dof:
+    label: boxes6dof
+  shapes_6dof:
+    label: shapes6dof
+  dynamic_6dof:
+    label: dynamic6dof
+Algorithms:
+  uslam_event_imu:
+    fn: traj_est
+    label: uslam-event-imu
+RelDistances: []
+RelDistancePercentages: []
