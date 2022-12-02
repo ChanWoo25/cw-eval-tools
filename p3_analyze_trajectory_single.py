@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 
 import os
 import argparse
@@ -7,19 +7,43 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import rc
 import matplotlib
-from colorama import init, Fore
 
-import add_path
-from trajectory import Trajectory
-import plot_utils as pu
-from fn_constants import kNsToEstFnMapping, kNsToMatchFnMapping, kFnExt
-from multiple_traj_errors import MulTrajError
+from colorama import init as colorama_init
+from colorama import Fore, Back, Style
+colorama_init(autoreset=True)
 
-init(autoreset=True)
+from utils.Statistics import Statistics
+
+# import add_path
+# from trajectory import Trajectory
+# import plot_utils as pu
+# from fn_constants import kNsToEstFnMapping, kNsToMatchFnMapping, kFnExt
+# from multiple_traj_errors import MulTrajError
+
+FILE_DESCRIPTION = """
+Description: 'analyze_trajectory_single.py' is a useful script \
+to analyze a single algorithm on a single dataset \
+with a single or multiple experiments
+Maintainer: Chanwoo Lee
+Email: leechanwoo25@gmail.com
+Welcome to Github: https://github.com/ChanWoo25
+"""
+
+kNsToEstFnMapping = {'traj_est': 'stamped_traj_estimate',
+                     'pose_graph': 'stamped_pose_graph_estimate',
+                     'ba_estimate': 'stamped_ba_estimate'}
+kNsToMatchFnMapping = {'traj_est': 'stamped_est_gt_matches',
+                       'pose_graph': 'stamped_pg_gt_matches',
+                       'ba_estimate': 'stamped_ba_gt_matches'}
+kFnExt = 'txt'
+
+ESTIMATE_TYPE = [kNsToEstFnMapping, kNsToMatchFnMapping, kFnExt]
+
+
 rc('font', **{'family': 'serif', 'serif': ['Cardo']})
 rc('text', usetex=True)
 
-FORMAT = '.pdf'
+FORMAT = '.png'
 
 
 def analyze_multiple_trials(results_dir, est_type, n_trials,
@@ -72,25 +96,26 @@ def analyze_multiple_trials(results_dir, est_type, n_trials,
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(
-        description='''Analyze trajectory estimate in a folder.''')
+    print(Fore.GREEN + FILE_DESCRIPTION)
+    parser = argparse.ArgumentParser()
+
     parser.add_argument(
-        'result_dir', type=str,
-        help="Folder containing the groundtruth and the estimate.")
+        'results_dir', type=str,
+        help="A directory containing results from experiments. "
+            +"This should be contain the ground-truth file.")
     parser.add_argument(
-        '--plots_dir', type=str,
-        help="Folder to output plots",
-        default='')
+        '--plots_dir', type=str, default=None,
+        help="A directory for saving plots and statistics."
+            +"Dafulat is same with results_dir")
     parser.add_argument(
-        '--mul_trials', type=int,
-        help='number of trials, None for single run', default=None)
+        '--mul_trials', type=int, default=None,
+        help='number of trials, None for single run')
     parser.add_argument(
-        '--mul_plot_idx', type=int,
-        nargs="*",
+        '--mul_plot_idx', type=int, nargs="*",
         help='index of  trials for plotting', default=[0])
     parser.add_argument(
-        '--est_types', nargs="*", type=str,
-        default=['traj_est'])
+        '--estimate_type', type=str,
+        default='trajectory')
     parser.add_argument('--recalculate_errors',
                         help='Deletes cached errors', action='store_true')
     parser.add_argument('--png',
@@ -106,46 +131,58 @@ if __name__ == '__main__':
     parser.set_defaults(plot=True)
     args = parser.parse_args()
 
-    assert os.path.exists(args.result_dir)
+    assert os.path.exists(args.results_dir)
+    results_dir:str = args.results_dir
+    plots_root_dir:str
+    estimate_type:str = args.estimate_type
 
-    for est_type in args.est_types:
-        assert est_type in kNsToEstFnMapping
-        assert est_type in kNsToMatchFnMapping
-
-    top_plots_dir = args.plots_dir
-    if not args.plots_dir:
-        top_plots_dir = os.path.join(args.result_dir, 'plots')
-    if not os.path.exists(top_plots_dir):
-        os.makedirs(top_plots_dir)
-
-    plots_dirs = []
-    for est_type in args.est_types:
-        plot_dir_i = os.path.join(top_plots_dir, est_type)
-        if not os.path.exists(plot_dir_i):
-            os.makedirs(plot_dir_i)
-        plots_dirs.append(plot_dir_i)
-    if args.png:
-        FORMAT = '.png'
-
-    print(Fore.YELLOW + "=== Summary ===")
-    print(Fore.YELLOW +
-          "Going to analyze the results in {0}.".format(args.result_dir))
-    print(Fore.YELLOW +
-          "Will analyze estimate types: {0}".format(args.est_types))
-    print(Fore.YELLOW +
-          "The plots will saved in {0}.".format(plots_dirs))
-    n_trials = 1
-    if args.mul_trials:
-        print(Fore.YELLOW +
-              "We will ananlyze multiple trials #{0}".format(args.mul_trials))
-        n_trials = args.mul_trials
-        if len(args.mul_plot_idx) == 0:
-            args.mul_plot_idx = (np.arange(args.mul_trials)).tolist()
-        print(Fore.YELLOW +
-              "We will plot trials {0}.".format(args.mul_plot_idx))
+    if args.plots_dir is None:
+        plots_root_dir = os.path.join(results_dir, 'plots')
     else:
-        args.mul_plot_idx = [0]
-    assert len(args.mul_plot_idx) is 1, "Multiple plots not supported yet"
+        plots_root_dir = args.plots_dir
+    if not os.path.exists(plots_root_dir):
+        os.makedirs(plots_root_dir)
+
+    # for est_type in args.est_types:
+    #     assert est_type in kNsToEstFnMapping
+    #     assert est_type in kNsToMatchFnMapping
+
+    plots_dir = os.path.join(plots_root_dir, estimate_type)
+    if not os.path.exists(plots_dir):
+        os.mkdir(plots_dir)
+
+    # dirs = []
+    # for dir in os.listdir(results_dir):
+    #     if dir.startswith('result_'):
+    #         dirs.append(os.path.join(results_dir, dir))
+
+    # n_trials = len(dirs)
+    # dirs.sort()
+
+    print(Fore.GREEN + "======= Summary =======")
+    print("Result dir: {0}".format(results_dir))
+    print("Estimate types: {0}".format(estimate_type))
+    print("Plot dir: {0}".format(plots_root_dir))
+
+    data:np.ndarray = np.genfromtxt(os.path.join(results_dir, 'est.txt'), comments='#')
+    print('data shape:', data.shape)
+    print('data dtype:', data.dtype)
+
+    for i in range(data.shape[1]):
+        print(Statistics.process_1d(data[:, i]))
+
+    exit(0)
+
+
+        # mt_error = MulTrajError()
+        # traj_list, mt_error = analyze_multiple_trials(
+        #     args.result_dir, est_type_i, n_trials, args.recalculate_errors)
+        # if traj_list:
+        #     plot_traj = traj_list[args.mul_plot_idx[0]]
+        # else:
+        #     print("No success runs, not plotting.")
+
+
 
     for est_type_i, plot_dir_i in zip(args.est_types, plots_dirs):
         print(Fore.RED +
