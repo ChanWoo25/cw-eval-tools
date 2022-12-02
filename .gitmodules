@@ -1,0 +1,4 @@
+[submodule "thirdparty/yaml-cpp"]
+	path = thirdparty/yaml-cpp
+	url = https://github.com/ChanWoo25/yaml-cpp.git
+	branch = v0.6.3
