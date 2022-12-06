@@ -7,7 +7,7 @@ print(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 import namu_trajectory_evaluation.utils.Statistics as rw
-import SO3
+import namu_trajectory_evaluation.utils.Rotation as Rotation
 
 from colorama import init as colorama_init
 from colorama import Fore, Back, Style

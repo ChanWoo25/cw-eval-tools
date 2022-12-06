@@ -7,7 +7,8 @@ import sys
 print(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-import SO3
+from Rotation import Rotation
+from Translation import Translation
 
 class Statistics:
     device_ = torch.device('cuda:%d'%(torch.cuda.current_device()) if torch.cuda.is_available() else 'cpu')

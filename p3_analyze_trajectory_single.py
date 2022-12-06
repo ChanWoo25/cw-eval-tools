@@ -8,10 +8,12 @@ import matplotlib.pyplot as plt
 from matplotlib import rc
 import matplotlib
 
+# The package for colored Command Line Interface (CLI)
 from colorama import init as colorama_init
 from colorama import Fore, Back, Style
 colorama_init(autoreset=True)
 
+# Custom packages
 from utils.Statistics import Statistics
 
 # import add_path
