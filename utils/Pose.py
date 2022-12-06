@@ -4,7 +4,7 @@ from typing import Tuple
 
 import os
 import sys
-print(os.path.dirname(os.path.abspath(__file__)))
+# print(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from Rotation import Rotation
@@ -32,8 +32,12 @@ class Pose:
 
         self.t_data:Translation = Translation(t_data)
         self.R_data:Rotation    = Rotation(R_data, R_type, R_qtype)
-        self.single:bool = t_data.single
         self.cudable:bool = torch.cuda.is_available()
+
+    @property
+    def length(self):
+        assert (self.t_data.length == self.R_data.length), 'translation and rotation data should have same length!'
+        return self.t_data.length
 
     def numpy(self, out_Rtype:str) -> Tuple[np.ndarray, np.ndarray, str]:
         if out_Rtype == 'SO3':

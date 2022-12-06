@@ -2,10 +2,9 @@ import numpy as np
 import torch
 from typing import Tuple
 
-
 import os
 import sys
-print(os.path.dirname(os.path.abspath(__file__)))
+# print(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 # The lists of available rotation parameterization
@@ -99,11 +98,12 @@ class Rotation:
             self.data = self.data.cpu()
         return self.data.numpy(), self.param_type
 
+    @property
     def length(self):
         if self.single:
             return 1
         else:
-            return self.data.shape[0]
+            return self.data.size(0)
 
     def shape(self):
         return self.data.shape
