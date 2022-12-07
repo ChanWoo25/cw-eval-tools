@@ -9,6 +9,7 @@ import sys
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from Trajectory import Trajectory
+from TrajectoryParser import TrajectoryParser
 from Rotation import Rotation
 from torch_utils import bmtm
 
@@ -30,7 +31,7 @@ class TrajectoryAnalyzer:
         - c: normally means scale factor
     """
 
-    def __init__(self, root_dir:str=None, gt_abs_path:str=None, estimate_dir_prefix:str='result_', use_cache=True):
+    def __init__(self, root_dir:str=None, gt_abs_path:str=None, estimate_dir_prefix:str='result_', use_cache=False):
         assert (root_dir is not None and os.path.exists(root_dir)), Fore.RED+'You need to specify root directory containing estimates and ground-truth files'
         assert (gt_abs_path is not None and os.path.exists(gt_abs_path)), Fore.RED+'You need to specify an absolute path for proper GT file'
 
@@ -57,32 +58,39 @@ class TrajectoryAnalyzer:
             inter_gt_path          = dir / 'interpolated_gt.txt'
             relative_estimate_path = dir / 'relative_estimate.txt'
             relative_gt_path       = dir / 'relative_gt.txt'
+            cache_path             = dir / 'cache_dict.pt'
 
             if not estimate_path.exists():
                 raise AssertionError(Fore.RED+'%s doesn\'t exists!'%estimate_path.name)
 
-            if not inter_est_path.exists() or not inter_gt_path.exists() or not use_cache:
-                estimate = Trajectory(use_file=True, trajectory_file_abs_path=estimate_path)
-                self.save_interpolated_gt_n_estimate(estimate, self.gt, dir)
-            else:
-                print('Cached %s,%s is checked!' % (inter_est_path.name, inter_gt_path.name))
+            estimate = Trajectory(use_file=True, trajectory_file_abs_path=estimate_path)
+            TrajectoryParser.parse_trajectory(estimate, self.gt, cache_path)
 
-            if not relative_estimate_path.exists() or not use_cache:
-                self.save_relative_estimate(dir)
-            else:
-                print('Cached %s is checked!' % (relative_estimate_path.name))
+            # if not inter_est_path.exists() or not inter_gt_path.exists() or not use_cache:
+            #     estimate = Trajectory(use_file=True, trajectory_file_abs_path=estimate_path)
+            #     self.save_interpolated_gt_n_estimate(estimate, self.gt, dir)
+            # else:
+            #     print('Cached %s,%s is checked!' % (inter_est_path.name, inter_gt_path.name))
 
-            if not relative_gt_path.exists() or not use_cache:
-                self.save_relative_gt(dir)
-            else:
-                print('Cached %s is checked!' % (relative_gt_path.name))
+            # if not relative_estimate_path.exists() or not use_cache:
+            #     self.save_relative_estimate(dir)
+            # else:
+            #     print('Cached %s is checked!' % (relative_estimate_path.name))
 
-
+            # if not relative_gt_path.exists() or not use_cache:
+            #     self.save_relative_gt(dir)
+            # else:
+            #     print('Cached %s is checked!' % (relative_gt_path.name))
 
             print()
 
         self.abs_error_dict = {}
         self.rel_error_dict = {}
+
+    def cache_exists(self, result_dir:Path) -> bool:
+        assert (result_dir.exists())
+        cache_fn:Path = result_dir / 'cache_dict.pt'
+        return cache_fn.exists()
 
     def save_interpolated_gt_n_estimate(self, estimate:Trajectory, gt:Trajectory, save_dir:Path):
         est_ts = estimate.times.data
