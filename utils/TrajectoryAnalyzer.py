@@ -10,6 +10,8 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from Trajectory import Trajectory
 from Rotation import Rotation
+from torch_utils import bmtm
+
 
 # The package for colored Command Line Interface (CLI)
 from colorama import init as colorama_init
@@ -28,13 +30,14 @@ class TrajectoryAnalyzer:
         - c: normally means scale factor
     """
 
-    def __init__(self, root_dir:str=None, gt_abs_path:str=None, estimate_dir_prefix:str='result_', use_cache=False):
+    def __init__(self, root_dir:str=None, gt_abs_path:str=None, estimate_dir_prefix:str='result_', use_cache=True):
         assert (root_dir is not None and os.path.exists(root_dir)), Fore.RED+'You need to specify root directory containing estimates and ground-truth files'
         assert (gt_abs_path is not None and os.path.exists(gt_abs_path)), Fore.RED+'You need to specify an absolute path for proper GT file'
 
         self.root_dir = Path(root_dir)
         self.gt_abs_path = Path(gt_abs_path)
         self.use_cache = use_cache
+        self.cudable = torch.cuda.is_available()
 
         self.dirs = list(self.root_dir.glob(estimate_dir_prefix+'*'))
         self.dirs.sort()
@@ -45,6 +48,7 @@ class TrajectoryAnalyzer:
         print('+ %s -- [GT]\n'%gt_abs_path)
 
         self.gt = Trajectory(use_file=True, trajectory_file_abs_path=self.gt_abs_path)
+        print()
 
         for dir in self.dirs:
             print(Fore.GREEN+'%s Processing ... ' % dir.name)
@@ -57,14 +61,25 @@ class TrajectoryAnalyzer:
             if not estimate_path.exists():
                 raise AssertionError(Fore.RED+'%s doesn\'t exists!'%estimate_path.name)
 
-            estimate = Trajectory(use_file=True, trajectory_file_abs_path=estimate_path)
-
             if not inter_est_path.exists() or not inter_gt_path.exists() or not use_cache:
+                estimate = Trajectory(use_file=True, trajectory_file_abs_path=estimate_path)
                 self.save_interpolated_gt_n_estimate(estimate, self.gt, dir)
+            else:
+                print('Cached %s,%s is checked!' % (inter_est_path.name, inter_gt_path.name))
+
             if not relative_estimate_path.exists() or not use_cache:
-                pass
+                self.save_relative_estimate(dir)
+            else:
+                print('Cached %s is checked!' % (relative_estimate_path.name))
+
             if not relative_gt_path.exists() or not use_cache:
-                pass
+                self.save_relative_gt(dir)
+            else:
+                print('Cached %s is checked!' % (relative_gt_path.name))
+
+
+
+            print()
 
         self.abs_error_dict = {}
         self.rel_error_dict = {}
@@ -141,32 +156,67 @@ class TrajectoryAnalyzer:
         interpolated_est_fn = save_dir / 'interpolated_estimate.txt'
         np.savetxt(interpolated_est_fn, interpolated_est, fmt='%1.8f', header=header)
 
+    def save_relative_estimate(self, save_dir:Path):
+        interpolated_est_fn = save_dir / 'interpolated_estimate.txt'
+        if interpolated_est_fn.exists():
+            interpolated_est = np.genfromtxt(interpolated_est_fn)
+            interpolated_est = torch.from_numpy(interpolated_est)
+            if self.cudable:
+                interpolated_est = interpolated_est.cuda()
 
+            time = interpolated_est[:, 0]
+            t = interpolated_est[:, 1:4]
+            R = interpolated_est[:, 4:8]
+            time = time[:-1].unsqueeze(1) # torch.lerp(time[:-1], time[1:], 0.5)
+            dt = t[1:] - t[:-1]
+            R = Rotation(R, 'quat', qtype='xyzw')
+            R = R.SO3().data
+            R = bmtm(R[:-1], R[1:])
+            R = Rotation(R, 'SO3')
+            dR = R.quat().data
+            dr = R.so3().data
 
+            dt_norm = dt.norm(dim=1).unsqueeze(1)
+            dr_norm = dr.norm(dim=1).unsqueeze(1)
 
+            header = '13 columns :: time[sec] dt[1x3] dt_norm dq[1x4] dr[1x3] dr_norm'
+            relative_estimate = torch.cat((time, dt, dt_norm, dR, dr, dr_norm), dim=1).cpu().numpy()
+            relative_estimate_fn = save_dir / 'relative_estimate.txt'
+            np.savetxt(relative_estimate_fn, relative_estimate, fmt='%1.8f', header=header)
 
-    def save_relative_estimate(self, estimate:Trajectory):
-        raise NotImplementedError()
+        else:
+            raise AssertionError('interpolated data does\'t exists!')
 
-    def save_relative_gt(self, interpolated_gt:Trajectory):
-        raise NotImplementedError()
+    def save_relative_gt(self, save_dir:Path):
+        interpolated_gt_fn = save_dir / 'interpolated_gt.txt'
+        if interpolated_gt_fn.exists():
+            interpolated_gt = np.genfromtxt(interpolated_gt_fn)
+            interpolated_gt = torch.from_numpy(interpolated_gt)
+            if self.cudable:
+                interpolated_gt = interpolated_gt.cuda()
 
-    def interpolate_by(self, t_int:'Time') -> 'Trajectory':
-        """
-            Interpolation is performed by 'in-place' way,
-            according to the time vector given by t_int.
-            You need to sure self.t and t_int have same unit base.
-        """
-        # assert (self.)
-        raise NotImplementedError()
+            time = interpolated_gt[:, 0]
+            t = interpolated_gt[:, 1:4]
+            R = interpolated_gt[:, 4:8]
+            time = time[:-1].unsqueeze(1) # torch.lerp(time[:-1], time[1:], 0.5)
+            dt = t[1:] - t[:-1]
+            R = Rotation(R, 'quat', qtype='xyzw')
+            R = R.SO3().data
+            R = bmtm(R[:-1], R[1:])
+            R = Rotation(R, 'SO3')
+            dR = R.quat().data
+            dr = R.so3().data
 
-    def __str__(self) -> str:
-        message = 'Print only first 10 lines.'
+            dt_norm = dt.norm(dim=1).unsqueeze(1)
+            dr_norm = dr.norm(dim=1).unsqueeze(1)
 
-    @property
-    def length(self):
-        assert (self.times.length == self.poses.length)
-        return self.times.length
+            header = '13 columns :: time[sec] dt[1x3] dt_norm dq[1x4] dr[1x3] dr_norm'
+            relative_gt = torch.cat((time, dt, dt_norm, dR, dr, dr_norm), dim=1).cpu().numpy()
+            relative_gt_fn = save_dir / 'relative_gt.txt'
+            np.savetxt(relative_gt_fn, relative_gt, fmt='%1.8f', header=header)
+        else:
+            raise AssertionError('interpolated data does\'t exists!')
+
 
     def SE3(self):
         raise NotImplementedError

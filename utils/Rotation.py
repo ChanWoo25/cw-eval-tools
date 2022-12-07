@@ -107,6 +107,10 @@ class Rotation:
                 other = other.expand(self.data.shape[0], 3, 3)
                 new_data = bmtm(other, self.data)
                 return Rotation(new_data, 'SO3')
+            elif isinstance(other, Rotation):
+                assert other.single == False
+                new_data = bmtm(other.data, self.data)
+                return Rotation(new_data, 'SO3')
         else:
             raise NotImplementedError()
 
@@ -115,6 +119,10 @@ class Rotation:
             if isinstance(other, torch.Tensor) and other.shape == (3, 3):
                 other = other.expand(self.data.shape[0], 3, 3)
                 new_data = torch.bmm(other, self.data)
+                return Rotation(new_data, 'SO3')
+            elif isinstance(other, Rotation):
+                assert other.single == False
+                new_data = torch.bmm(other.data, self.data)
                 return Rotation(new_data, 'SO3')
         else:
             raise NotImplementedError()
