@@ -686,9 +686,6 @@ class Rotation:
             ax, az = az, ax
 
         ypr = torch.stack((ax, ay, az), dim=1)
-        print(ypr.shape)
-        print(ypr.device)
-        print(ypr.dtype)
         return ypr
 
 

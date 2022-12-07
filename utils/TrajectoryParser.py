@@ -50,20 +50,43 @@ class TrajectoryParser:
         abs_q_xyzw_est = interpolated_est[:, 4:8]
         abs_t_gt = interpolated_gt[:, 1:4]
         abs_q_xyzw_gt = interpolated_gt[:, 4:8]
-        print("timestamp_sec:", timestamp_sec.shape)
-        print("abs_t_est:", abs_t_est.shape)
-        print("abs_q_xyzw_est:", abs_q_xyzw_est.shape)
-        print("abs_t_gt:", abs_t_gt.shape)
-        print("abs_q_xyzw_gt:", abs_q_xyzw_gt.shape)
+        # print("timestamp_sec:", timestamp_sec.shape)
+        # print("abs_t_est:", abs_t_est.shape)
+        # print("abs_q_xyzw_est:", abs_q_xyzw_est.shape)
+        # print("abs_t_gt:", abs_t_gt.shape)
+        # print("abs_q_xyzw_gt:", abs_q_xyzw_gt.shape)
+
+        abs_t_error = torch.abs(abs_t_gt - abs_t_est)
+        abs_t_error_norm:torch.Tensor = torch.norm(abs_t_error, dim=1)
+        # print("abs_t_error:", abs_t_error.shape)
+        # print("abs_t_error_norm:", abs_t_error_norm.shape)
+
 
         rel_timestamp_sec = timestamp_sec[:-1]
         rel_t_est, rel_q_xyzw_est = cls.relative_estimate(interpolated_est)
         rel_t_gt, rel_q_xyzw_gt = cls.relative_gt(interpolated_gt)
-        print("rel_timestamp_sec:", rel_timestamp_sec.shape)
-        print("rel_t_est:", rel_t_est.shape)
-        print("rel_q_xyzw_est:", rel_q_xyzw_est.shape)
-        print("rel_t_gt:", rel_t_gt.shape)
-        print("rel_q_xyzw_gt:", rel_q_xyzw_gt.shape)
+        # print("rel_timestamp_sec:", rel_timestamp_sec.shape)
+        # print("rel_t_est:", rel_t_est.shape)
+        # print("rel_q_xyzw_est:", rel_q_xyzw_est.shape)
+        # print("rel_t_gt:", rel_t_gt.shape)
+        # print("rel_q_xyzw_gt:", rel_q_xyzw_gt.shape)
+
+        rel_t_error = rel_t_gt - rel_t_est
+        rel_t_error_norm:torch.Tensor = rel_t_error.norm(dim=1)
+        # print("rel_t_error:", rel_t_error.shape)
+        # print("rel_t_error_norm:", rel_t_error_norm.shape)
+
+        rel_R_est = Rotation(rel_q_xyzw_est, param_type='quat', qtype='xyzw').SO3()
+        rel_R_gt = Rotation(rel_q_xyzw_gt, param_type='quat', qtype='xyzw').SO3()
+        rel_R = rel_R_gt - rel_R_est
+        rel_R = rel_R.so3()
+
+        rel_r_error = rel_R.data
+        rel_r_error_norm:torch.Tensor = rel_r_error.norm(dim=1)
+        # print("rel_r_error:", rel_r_error.shape)
+        # print("rel_r_error_norm:", rel_r_error_norm.shape)
+
+
 
         rel_t_norm_gt = rel_t_gt.norm(dim=1)
         t_traveled_gt = torch.zeros_like(timestamp_sec)
@@ -76,18 +99,67 @@ class TrajectoryParser:
                 break
             else:
                 traveled += rel_t_norm_gt[i].item()
-        print("t_traveled_gt:", t_traveled_gt.shape)
+        # print("t_traveled_gt:", t_traveled_gt.shape)
+
+        abs_t_error_norm_percent = abs_t_error_norm / t_traveled_gt
+        abs_t_error_norm_percent[0] = 0.0
+        # print("abs_t_error_norm_percent:", abs_t_error_norm_percent.shape)
+        # print('abs_t_error_norm_percent:', abs_t_error_norm_percent[:10])
 
         R_est = Rotation(abs_q_xyzw_est, param_type='quat', qtype='xyzw').SO3()
         R_gt = Rotation(abs_q_xyzw_gt, param_type='quat', qtype='xyzw').SO3()
+        abs_ypr_est = R_est.SO3_to_euler_rzyx()
+        abs_ypr_gt = R_gt.SO3_to_euler_rzyx()
         abs_R_error = R_gt - R_est
-        abs_ypr_error = abs_R_error.SO3_to_euler_rzyx()
+
+        R_est = R_est.so3()
+        R_gt = R_gt.so3()
+        abs_r_est = torch.rad2deg(R_est.data)
+        abs_r_gt = torch.rad2deg(R_gt.data)
+
+
+        abs_ypr_error = abs_ypr_gt - abs_ypr_est
         abs_ypr_error = torch.rad2deg(abs_ypr_error)
-        print(abs_ypr_error.shape)
+        # print("abs_ypr_error", abs_ypr_error.shape)
+
+        abs_yaw_error = abs_ypr_error[:, 0]
+        # print("abs_yaw_error", abs_yaw_error.shape)
+
+        yaw_error_per_meter = []
+        prev_i = 0
+        for i in range(t_traveled_gt.size(0)):
+            dt = t_traveled_gt[i] - t_traveled_gt[prev_i]
+            if dt.item() > 0.1:
+                dyaw_gt = abs_ypr_gt[i, 0] - abs_ypr_gt[prev_i, 0]
+                dyaw_est = abs_ypr_est[i, 0] - abs_ypr_est[prev_i, 0]
+                # print('dyaw_gt: %1.8f'%dyaw_gt)
+                # print('dyaw_est: %1.8f'%dyaw_est)
+                dyaw_error = torch.abs(dyaw_gt - dyaw_est)
+                dyaw_error = torch.rad2deg(dyaw_error)
+                dyaw_error_per_meter = dyaw_error / dt
+                yaw_error_per_meter.append(dyaw_error_per_meter.item())
+                prev_i = i
+            else:
+                continue
+
+        yaw_error_per_meter = torch.from_numpy(np.array(yaw_error_per_meter))
+        # print('yaw_error_per_meter:', yaw_error_per_meter.shape)
+        # print('mean yaw_error_per_meter:', yaw_error_per_meter.mean())
+
+        abs_yaw_error_per_meter = abs_yaw_error[-1] / t_traveled_gt[-1]
+        # print('abs_yaw_error_per_meter:', abs_yaw_error_per_meter.shape)
+        # print('paper mean yaw_error_per_meter: %1.8f'%abs_yaw_error_per_meter.item())
+
+
+        abs_R_error = abs_R_error.so3()
+        abs_r_error = abs_R_error.data
+        abs_r_error_norm = abs_r_error.norm(dim=1)
+        # print("abs_r_error:", abs_r_error.shape)
+        # print("abs_r_error_norm:", abs_r_error_norm.shape)
 
         dR_gt = Rotation(rel_q_xyzw_gt, param_type='quat', qtype='xyzw').SO3()
         dyaw = dR_gt.SO3_to_euler_rzyx()[:, 0]
-        print(dyaw.shape)
+        # print("dyaw", dyaw.shape)
 
         yaw_traveled = torch.zeros_like(timestamp_sec)
         traveled = 0.0
@@ -99,13 +171,42 @@ class TrajectoryParser:
                 break
             else:
                 traveled += abs(dyaw[i].item())
-        print("yaw_traveled:", yaw_traveled.shape)
+        yaw_traveled = torch.rad2deg(yaw_traveled)
+        # print("yaw_traveled:", yaw_traveled.shape)
 
+        abs_yaw_error_percent = abs(abs_ypr_error[:, 0]) / yaw_traveled
+        abs_yaw_error_percent[0] = 0.0
+        # print('abs_yaw_error_percent:', abs_yaw_error_percent.shape)
+        # print('abs_yaw_error_percent:', abs_yaw_error_percent[:10])
 
-        # self.result_dir:Path = result_dir
-        # self.gt_abs_path:Path = gt_abs_path
-        # self.use_cache = use_cache
-        # self.cudable = torch.cuda.is_available()
+        cache_dict = {}
+        cache_dict['timestamp_sec'] = timestamp_sec.cpu()
+        cache_dict['abs_t_est'] = abs_t_est.cpu()
+        cache_dict['abs_t_gt'] = abs_t_gt.cpu()
+        cache_dict['abs_t_error'] = abs_t_error.cpu()
+        cache_dict['abs_t_error_norm'] = abs_t_error_norm.cpu()
+        cache_dict['abs_t_error_norm_percent'] = abs_t_error_norm_percent.cpu()
+        cache_dict['t_traveled_gt'] = t_traveled_gt.cpu()
+        cache_dict['abs_r_est'] = abs_r_est.cpu()
+        cache_dict['abs_r_gt'] = abs_r_gt.cpu()
+        cache_dict['abs_ypr_error'] = abs_ypr_error.cpu()
+        cache_dict['abs_yaw_error'] = abs_yaw_error.cpu()
+        cache_dict['yaw_traveled'] = yaw_traveled.cpu()
+        cache_dict['abs_yaw_error_percent'] = abs_yaw_error_percent.cpu()
+        cache_dict['yaw_error_per_meter'] = yaw_error_per_meter.cpu()
+        cache_dict['abs_yaw_error_per_meter'] = abs_yaw_error_per_meter.cpu()
+        cache_dict['rel_timestamp_sec'] = rel_timestamp_sec.cpu()
+        cache_dict['rel_t_est'] = rel_t_est.cpu()
+        cache_dict['rel_q_xyzw_est'] = rel_q_xyzw_est.cpu()
+        cache_dict['rel_t_gt'] = rel_t_gt.cpu()
+        cache_dict['rel_q_xyzw_gt'] = rel_q_xyzw_gt.cpu()
+        cache_dict['rel_t_error'] = rel_t_error.cpu()
+        cache_dict['rel_t_error_norm'] = rel_t_error_norm.cpu()
+        cache_dict['rel_r_error'] = rel_r_error.cpu()
+        cache_dict['rel_r_error_norm'] = rel_r_error_norm.cpu()
+
+        torch.save(cache_dict, cache_fn)
+
 
 
 
