@@ -11,6 +11,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from Trajectory import Trajectory
 from Rotation import Rotation
 from torch_utils import bmtm
+from TrajectoryAlign import TrajectoryAlign
 
 # The package for colored Command Line Interface (CLI)
 from colorama import init as colorama_init
@@ -53,6 +54,17 @@ class TrajectoryParser:
         # print("abs_q_xyzw_est:", abs_q_xyzw_est.shape)
         # print("abs_t_gt:", abs_t_gt.shape)
         # print("abs_q_xyzw_gt:", abs_q_xyzw_gt.shape)
+
+        # Alignment!
+        align_R, align_t = TrajectoryAlign.alignSE3(abs_t_est, abs_t_gt)
+        if cls.cudable:
+            align_R = align_R.cuda()
+            align_t = align_t.cuda()
+        abs_t_est = torch.matmul(abs_t_est, align_R.transpose(0, 1)) + align_t.expand_as(abs_t_est)
+        # abs_R_est = Rotation(abs_q_xyzw_est, 'quat', 'xyzw').SO3()
+        # abs_R_est = abs_R_est + align_R
+        # abs_R_est = abs_R_est.quat()
+        # abs_q_xyzw_est = abs_R_est.data
 
         abs_t_error = torch.abs(abs_t_gt - abs_t_est)
         abs_t_error_norm:torch.Tensor = torch.norm(abs_t_error, dim=1)
