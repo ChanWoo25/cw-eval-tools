@@ -7,6 +7,8 @@ import sys
 # print(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
+from torch_utils import bmtm
+
 # The lists of available rotation parameterization
 ROT_PARAM_TYPES = [
     'SO3',  # SO(3) Rotation Matrix
@@ -48,7 +50,7 @@ class Rotation:
         unvalid_shape_err:AssertionError = AssertionError('Unvalid shape for %s parameterization'%self.param_type)
 
         if self.param_type is 'SO3':
-            if data.shape[-1] != 3 or data.shape[-2] == 3:
+            if data.shape[-1] != 3 or data.shape[-2] != 3:
                 raise unvalid_shape_err
             else:
                 if len(data.shape) == 2:
@@ -72,6 +74,7 @@ class Rotation:
             if data.shape[-1] != 4:
                 raise unvalid_shape_err
             else:
+                self.qtype:str = qtype
                 if len(data.shape) == 1:
                     self.single = True
                 elif data.shape[0] > 1:
@@ -97,6 +100,24 @@ class Rotation:
         if self.data.is_cuda:
             self.data = self.data.cpu()
         return self.data.numpy(), self.param_type
+
+    def __sub__(self, other) -> 'Rotation':
+        if self.param_type == 'SO3':
+            if isinstance(other, torch.Tensor) and other.shape == (3, 3):
+                other = other.expand(self.data.shape[0], 3, 3)
+                new_data = bmtm(other, self.data)
+                return Rotation(new_data, 'SO3')
+        else:
+            raise NotImplementedError()
+
+    def __add__(self, other) -> 'Rotation':
+        if self.param_type == 'SO3':
+            if isinstance(other, torch.Tensor) and other.shape == (3, 3):
+                other = other.expand(self.data.shape[0], 3, 3)
+                new_data = torch.bmm(other, self.data)
+                return Rotation(new_data, 'SO3')
+        else:
+            raise NotImplementedError()
 
     @property
     def length(self):
@@ -475,14 +496,50 @@ class Rotation:
         tau = torch.from_numpy(tau).to(device)
         return cls.slerp(q0, q1, tau)
 
+
     @staticmethod
-    def slerp(ql, qr, tau, DOT_THRESHOLD=0.9995):
+    def slerp(ql:torch.Tensor, qr:torch.Tensor, tau:torch.Tensor):
+        """
+            slerp == Spherical Linear Interpolation
+            - Reference: https://en.wikipedia.org/wiki/Slerp
+            - cos(sigma) = ql * qr = dot
+            - t(in wiki) := tau
+
+            #### Comparison with slerp_old()
+            - On result_00,
+            - interpolated_q = Rotation.slerp(ql, qr, tau)
+            - interpolated_q2 = Rotation.slerp2(ql, qr, tau)
+            - rest = interpolated_q - interpolated_q2
+            - less than 1e-6 error : 100%
+            - less than 1e-8 error : 618/620
+        """
+        dot = (ql * qr).sum(dim=1)
+        qr[dot < 0] *= -1.0
+        dot = (ql * qr).sum(dim=1)
+        sigma = dot.acos()
+
+        sl = torch.sin((1.0 - tau) * sigma) / torch.sin(sigma)
+        sr = torch.sin(tau * sigma) / torch.sin(sigma)
+
+        q = sl.unsqueeze(1) * ql + sr.unsqueeze(1) * qr
+        q = q / q.norm(dim=1, keepdim=True)
+        return q
+
+    @staticmethod
+    def slerp_old(ql:torch.Tensor, qr:torch.Tensor, tau:torch.Tensor, DOT_THRESHOLD=0.9995):
+        """
+            slerp == Spherical Linear Interpolation
+            - Reference: https://en.wikipedia.org/wiki/Slerp
+            - cos(sigma) = ql * qr = dot
+            - t(in wiki) := tau
+        """
         dot = (ql * qr).sum(dim=1)
         qr[dot < 0] *= -1.0
         dot = (ql * qr).sum(dim=1)
 
         q = torch.zeros_like(ql)
 
+        # when sigma -> 0 (== dot >= 0.9995), linear interpolation is ok
         case1 = ql + tau.unsqueeze(1) * (qr - ql)
         q[dot >= DOT_THRESHOLD] = case1[dot >= DOT_THRESHOLD]
 
