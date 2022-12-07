@@ -27,6 +27,8 @@ class Trajectory:
         - R: normally means rotation
         - c: normally means scale factor
     """
+    print_format_note_only_once = True
+
     def __init__(self, use_file:bool=False, trajectory_file_abs_path:str=None,
                        use_tensor:bool=False, time_sec:torch.Tensor=None, t_data:torch.Tensor=None, R_data:torch.Tensor=None):
 
@@ -52,10 +54,12 @@ class Trajectory:
         """
         message = "Loaded file: %s" % est_filename
         print(Fore.GREEN + message)
-        message  = "- Note that the text file format should be"
-        message += " '# time(sec) tx(m) ty(m) tz(m) qx qy qz qw'.\n"
-        message += "- You can follow the format or change this load() method"
-        print(message)
+        if Trajectory.print_format_note_only_once:
+            Trajectory.print_format_note_only_once = False
+            message  = "- Note that the text file format should be"
+            message += " '# time(sec) tx(m) ty(m) tz(m) qx qy qz qw'.\n"
+            message += "- You can follow the format or change this load() method"
+            print(message)
 
         data = torch.from_numpy(np.loadtxt(est_filename))
         assert (data.shape[0] > 0 and data.ndim == 2), 'Trajectory instance must have multiple poses'
