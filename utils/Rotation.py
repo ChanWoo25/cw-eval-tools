@@ -475,18 +475,16 @@ class Rotation:
         tau = torch.from_numpy(tau).to(device)
         return cls.slerp(q0, q1, tau)
 
-    @classmethod
-    def slerp(cls, q0, q1, tau, DOT_THRESHOLD = 0.9995):
-        """Spherical linear interpolation."""
+    @staticmethod
+    def slerp(ql, qr, tau, DOT_THRESHOLD=0.9995):
+        dot = (ql * qr).sum(dim=1)
+        qr[dot < 0] *= -1.0
+        dot = (ql * qr).sum(dim=1)
 
-        dot = (q0*q1).sum(dim=1)
-        q1[dot < 0] = -q1[dot < 0]
-        dot[dot < 0] = -dot[dot < 0]
+        q = torch.zeros_like(ql)
 
-        q = torch.zeros_like(q0)
-        tmp = q0 + tau.unsqueeze(1) * (q1 - q0)
-        tmp = tmp[dot > DOT_THRESHOLD]
-        q[dot > DOT_THRESHOLD] = tmp / tmp.norm(dim=1, keepdim=True)
+        case1 = ql + tau.unsqueeze(1) * (qr - ql)
+        q[dot >= DOT_THRESHOLD] = case1[dot >= DOT_THRESHOLD]
 
         theta_0 = dot.acos()
         sin_theta_0 = theta_0.sin()
@@ -494,8 +492,11 @@ class Rotation:
         sin_theta = theta.sin()
         s0 = (theta.cos() - dot * sin_theta / sin_theta_0).unsqueeze(1)
         s1 = (sin_theta / sin_theta_0).unsqueeze(1)
-        q[dot < DOT_THRESHOLD] = ((s0 * q0) + (s1 * q1))[dot < DOT_THRESHOLD]
-        return q / q.norm(dim=1, keepdim=True)
+        case2 = s0 * ql + s1 * qr
+        q[dot < DOT_THRESHOLD] = case2[dot < DOT_THRESHOLD]
+
+        q = q / q.norm(dim=1, keepdim=True)
+        return q
 
     @staticmethod
     def qmul(q1:'Rotation', q2:'Rotation', out_qtype='xyzw') -> 'Rotation':
