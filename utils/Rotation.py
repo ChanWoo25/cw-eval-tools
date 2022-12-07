@@ -638,40 +638,94 @@ class Rotation:
     # def isclose(cls, x, y):
     #     return (x-y).abs() < cls.eps_
 
-    # @classmethod
-    # def to_rpy(cls, Rots):
-    #     """Convert a rotation matrix to RPY Euler angles."""
+    def SO3_to_euler_rzyx(self) -> 'Rotation':
+        assert (self.param_type == 'SO3'), 'This operation need SO3'
+        assert (self.data.ndim == 3), 'This operation need dim(3) [n,3,3]'
 
-    #     pitch = torch.atan2(-Rots[:, 2, 0],
-    #         torch.sqrt(Rots[:, 0, 0]**2 + Rots[:, 1, 0]**2))
-    #     yaw = pitch.new_empty(pitch.shape)
-    #     roll = pitch.new_empty(pitch.shape)
+        firstaxis, parity, repetition, frame = (0, 0, 0, 1)
+        i = 0
+        j = 1
+        k = 2
 
-    #     near_pi_over_two_mask = cls.isclose(pitch, np.pi / 2.)
-    #     near_neg_pi_over_two_mask = cls.isclose(pitch, -np.pi / 2.)
+        M = self.data
+        eps = np.finfo(float).eps * 4.0
 
-    #     remainder_inds = ~(near_pi_over_two_mask | near_neg_pi_over_two_mask)
+        if repetition:
+            sy = (M[:, i, j]*M[:, i, j] + M[:, i, k]*M[:, i, k])
+            sy = sy.sqrt()
 
-    #     yaw[near_pi_over_two_mask] = 0
-    #     roll[near_pi_over_two_mask] = torch.atan2(
-    #         Rots[near_pi_over_two_mask, 0, 1],
-    #         Rots[near_pi_over_two_mask, 1, 1])
+            ax = M.new_empty((M.size(0)))
+            ay = M.new_empty((M.size(0)))
+            az = M.new_empty((M.size(0)))
 
-    #     yaw[near_neg_pi_over_two_mask] = 0.
-    #     roll[near_neg_pi_over_two_mask] = -torch.atan2(
-    #         Rots[near_neg_pi_over_two_mask, 0, 1],
-    #         Rots[near_neg_pi_over_two_mask, 1, 1])
+            ax[sy>eps]  = torch.atan2(M[sy>eps][:, i, j],  M[sy>eps][:, i, k])
+            ay[sy>eps]  = torch.atan2(sy[sy>eps]        ,  M[sy>eps][:, i, i])
+            az[sy>eps]  = torch.atan2(M[sy>eps][:, j, i], -M[sy>eps][:, k, i])
 
-    #     sec_pitch = 1/pitch[remainder_inds].cos()
-    #     remainder_mats = Rots[remainder_inds]
-    #     yaw = torch.atan2(remainder_mats[:, 1, 0] * sec_pitch,
-    #                       remainder_mats[:, 0, 0] * sec_pitch)
-    #     roll = torch.atan2(remainder_mats[:, 2, 1] * sec_pitch,
-    #                        remainder_mats[:, 2, 2] * sec_pitch)
-    #     rpys = torch.cat([roll.unsqueeze(dim=1),
-    #                     pitch.unsqueeze(dim=1),
-    #                     yaw.unsqueeze(dim=1)], dim=1)
-    #     return rpys
+            ax[sy<=eps] = torch.atan2(-M[sy<=eps][:, j, k],  M[sy<=eps][:, j, j])
+            ay[sy<=eps] = torch.atan2(sy[sy<=eps]        ,  M[sy<=eps][:, i, i])
+            az[sy<=eps] = 0.0
+        else:
+            cy = (M[:, i, i]**2 + M[:, j, i]**2).sqrt()
+
+            ax = M.new_empty((M.size(0)))
+            ay = M.new_empty((M.size(0)))
+            az = M.new_empty((M.size(0)))
+
+            ax[cy>eps]  = torch.atan2( M[cy>eps][:, k, j], M[cy>eps][:, k, k])
+            ay[cy>eps]  = torch.atan2(-M[cy>eps][:, k, i], cy[cy>eps])
+            az[cy>eps]  = torch.atan2( M[cy>eps][:, j, i], M[cy>eps][:, i, i])
+
+            ax[cy<=eps] = torch.atan2(-M[cy<=eps][:, j, k],  M[cy<=eps][:, j, j])
+            ay[cy<=eps] = torch.atan2(-M[cy<=eps][:, k, i],  cy[cy<=eps])
+            az[cy<=eps] = 0.0
+
+        if parity:
+            ax, ay, az = -ax, -ay, -az
+        if frame:
+            ax, az = az, ax
+
+        ypr = torch.stack((ax, ay, az), dim=1)
+        print(ypr.shape)
+        print(ypr.device)
+        print(ypr.dtype)
+        return ypr
+
+
+    @classmethod
+    def to_rpy(cls, Rots):
+        """Convert a rotation matrix to RPY Euler angles."""
+
+        pitch = torch.atan2(-Rots[:, 2, 0],
+            torch.sqrt(Rots[:, 0, 0]**2 + Rots[:, 1, 0]**2))
+        yaw = pitch.new_empty(pitch.shape)
+        roll = pitch.new_empty(pitch.shape)
+
+        near_pi_over_two_mask = cls.isclose(pitch, np.pi / 2.)
+        near_neg_pi_over_two_mask = cls.isclose(pitch, -np.pi / 2.)
+
+        remainder_inds = ~(near_pi_over_two_mask | near_neg_pi_over_two_mask)
+
+        yaw[near_pi_over_two_mask] = 0
+        roll[near_pi_over_two_mask] = torch.atan2(
+            Rots[near_pi_over_two_mask, 0, 1],
+            Rots[near_pi_over_two_mask, 1, 1])
+
+        yaw[near_neg_pi_over_two_mask] = 0.
+        roll[near_neg_pi_over_two_mask] = -torch.atan2(
+            Rots[near_neg_pi_over_two_mask, 0, 1],
+            Rots[near_neg_pi_over_two_mask, 1, 1])
+
+        sec_pitch = 1/pitch[remainder_inds].cos()
+        remainder_mats = Rots[remainder_inds]
+        yaw = torch.atan2(remainder_mats[:, 1, 0] * sec_pitch,
+                          remainder_mats[:, 0, 0] * sec_pitch)
+        roll = torch.atan2(remainder_mats[:, 2, 1] * sec_pitch,
+                           remainder_mats[:, 2, 2] * sec_pitch)
+        rpys = torch.cat([roll.unsqueeze(dim=1),
+                        pitch.unsqueeze(dim=1),
+                        yaw.unsqueeze(dim=1)], dim=1)
+        return rpys
 
 if __name__ == '__main__':
 

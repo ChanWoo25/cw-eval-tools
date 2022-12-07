@@ -355,7 +355,7 @@ def S_inv_eulerZYX_body(euler_coordinates):
 
 def S_inv_eulerZYX_body_deriv(euler_coordinates, omega):
     """ Compute dE(euler_coordinates)*omega/deuler_coordinates
-        cfo, 2015/08/13 
+        cfo, 2015/08/13
 
     """
 
@@ -374,7 +374,7 @@ def S_inv_eulerZYX_body_deriv(euler_coordinates, omega):
     J[2,0] = w1
     J[2,1] = 1.0/math.cos(y)**2 * (w2 * math.sin(z) + w3 * math.cos(z))
     J[2,2] = w2*math.tan(y)*math.cos(z) - w3*math.tan(y)*math.sin(z)
-   
+
     """
 
     # second version, x = psi, y = theta, z = phi
@@ -1259,7 +1259,7 @@ def euler_matrix(ai, aj, ak, axes='sxyz'):
         M[k, k] = cj*ci
     return M
 
-
+# 'rzyx': (0, 0, 0, 1)
 def euler_from_matrix(matrix, axes='sxyz'):
     """Return Euler angles from rotation matrix for specified axis sequence.
 
