@@ -45,6 +45,7 @@ class TrajectoryParser:
             interpolated_gt = interpolated_gt.cuda()
 
         timestamp_sec = interpolated_est[:, 0]
+        timestamp_sec = timestamp_sec - timestamp_sec[0]
         abs_t_est = interpolated_est[:, 1:4]
         abs_q_xyzw_est = interpolated_est[:, 4:8]
         abs_t_gt = interpolated_gt[:, 1:4]
@@ -96,8 +97,6 @@ class TrajectoryParser:
         # print("rel_r_error:", rel_r_error.shape)
         # print("rel_r_error_norm:", rel_r_error_norm.shape)
 
-
-
         rel_t_norm_gt = rel_t_gt.norm(dim=1)
         t_traveled_gt = torch.zeros_like(timestamp_sec)
         traveled = 0.0
@@ -126,7 +125,6 @@ class TrajectoryParser:
         R_gt = R_gt.so3()
         abs_r_est = torch.rad2deg(R_est.data)
         abs_r_gt = torch.rad2deg(R_gt.data)
-
 
         abs_ypr_error = abs_ypr_gt - abs_ypr_est
         abs_ypr_error = torch.rad2deg(abs_ypr_error)
@@ -197,6 +195,8 @@ class TrajectoryParser:
         cache_dict['abs_t_error_norm'] = abs_t_error_norm.cpu()
         cache_dict['abs_t_error_norm_percent'] = abs_t_error_norm_percent.cpu()
         cache_dict['t_traveled_gt'] = t_traveled_gt.cpu()
+        cache_dict['abs_q_xyzw_est'] = abs_q_xyzw_est.cpu()
+        cache_dict['abs_q_xyzw_gt'] = abs_q_xyzw_gt.cpu()
         cache_dict['abs_r_est'] = abs_r_est.cpu()
         cache_dict['abs_r_gt'] = abs_r_gt.cpu()
         cache_dict['abs_ypr_error'] = abs_ypr_error.cpu()
