@@ -77,7 +77,7 @@ class TrajectoryParser:
         abs_ypr_error = abs_ypr_gt - abs_ypr_est
         abs_ypr_error = torch.rad2deg(abs_ypr_error)
         abs_ypr_error[abs_ypr_error>=180.0] -= 360.0
-        abs_ypr_error[abs_ypr_error<180.0] += 360.0  #cache#
+        abs_ypr_error[abs_ypr_error<-180.0] += 360.0  #cache#
 
         # Compute relative errors
         rel_t_est = abs_t_est[1:] - abs_t_est[:-1]   #cache#
@@ -92,7 +92,7 @@ class TrajectoryParser:
         rel_yaw_gt  = abs_ypr_gt[1:,0]  - abs_ypr_gt[:-1,0]
 
         # Compute total translation distance
-        t_traveled_gt = torch.zeros_like(timestamp_sec, dtype=torch.float64)
+        t_traveled_gt = torch.zeros_like(timestamp_sec, dtype=torch.float64) #cache#
         for i in range(rel_t_gt.size(0)):
             t_traveled_gt[i+1] = t_traveled_gt[i] + torch.norm(rel_t_gt[i])
 
@@ -103,7 +103,6 @@ class TrajectoryParser:
         yaw_traveled_gt = torch.zeros_like(timestamp_sec, dtype=torch.float64) #cache#
         for i in range(rel_yaw_gt.size(0)):
             yaw_traveled_gt[i+1] = yaw_traveled_gt[i] + rel_yaw_gt[i]
-        print("yaw_traveled_gt:", yaw_traveled_gt.shape)
 
         # Compute yaw error per meter
         yaw_error_per_meter = []
@@ -136,6 +135,7 @@ class TrajectoryParser:
         cache_dict['abs_ypr_est'] = abs_ypr_est.data.cpu()
         cache_dict['abs_ypr_gt'] = abs_ypr_gt.data.cpu()
         cache_dict['abs_t_error'] = abs_t_error.cpu()
+        cache_dict['abs_t_traveled_gt'] = t_traveled_gt.cpu()
         cache_dict['abs_r_error'] = abs_r_error.data.cpu()
         cache_dict['abs_q_xyzw_error'] = abs_q_xyzw_error.data.cpu()
         cache_dict['abs_ypr_error'] = abs_ypr_error.cpu()

@@ -30,7 +30,8 @@ class Trajectory:
     print_format_note_only_once = True
 
     def __init__(self, use_file:bool=False, trajectory_file_abs_path:str=None,
-                       use_tensor:bool=False, time_sec:torch.Tensor=None, t_data:torch.Tensor=None, R_data:torch.Tensor=None):
+                       use_tensor:bool=False, time_sec:torch.Tensor=None, t_data:torch.Tensor=None, R_data:torch.Tensor=None,
+                       start:float=None, end:float=None):
 
 
         assert (int(use_file) + int(use_tensor) == 1), 'Should be choose only one flag to initialize Trajectory class, from file or from tensors'
@@ -41,11 +42,11 @@ class Trajectory:
 
             # internally initialize member vaiables
             # self.times and self.poses
-            self.load(trajectory_file_abs_path)
+            self.load(trajectory_file_abs_path, start, end)
         else:
             raise NotImplementedError()
 
-    def load(self, est_filename:str) -> np.ndarray:
+    def load(self, est_filename:str, start:float, end:float) -> np.ndarray:
         """
             **This method deals with loading trajectory data.** \n
             Fix or Override thid method according to your format
@@ -64,6 +65,13 @@ class Trajectory:
         data = torch.from_numpy(np.loadtxt(est_filename))
         assert (data.shape[0] > 0 and data.ndim == 2), 'Trajectory instance must have multiple poses'
         data = data[:, 0:8] # Clipping
+        if start is not None and end is not None:
+            beforeN = data.shape[0]
+            est_times = data[:, 0].clone() - data[0, 0]
+            mask = (start <= est_times) & (est_times <= end)
+            data = data[mask]
+            afterN = data.shape[0]
+            print('Clip trajectory data from %.4f to %.4f, size %d to %d'%(start, end, beforeN, afterN))
 
         self.N = data.shape[0]
         self.times:Time = Time(data=data[:, 0], unit='s')
@@ -89,28 +97,10 @@ class Trajectory:
         R, R_type = R.numpy()
         return t, R, R_type
 
-    def interpolate_by(self, t_int:'Time') -> 'Trajectory':
-        """
-            Interpolation is performed by 'in-place' way,
-            according to the time vector given by t_int.
-            You need to sure self.t and t_int have same unit base.
-        """
-        # assert (self.)
-        raise NotImplementedError()
-
-    def __str__(self) -> str:
-        message = 'Print only first 10 lines.'
-
     @property
     def length(self):
         assert (self.times.length == self.poses.length)
         return self.times.length
-
-    def SE3(self):
-        raise NotImplementedError
-
-    def se3(self):
-        raise NotImplementedError
 
 if __name__ == '__main__':
 

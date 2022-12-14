@@ -528,46 +528,13 @@ class Rotation:
         dot = (ql * qr).sum(dim=1)
         qr[dot < 0] = -qr[dot < 0]
         dot = (ql * qr).sum(dim=1)
-        if torch.any(dot.data.isnan()):
-            print('find dot\'s NaN!', dot.shape)
-            for i in range(dot.data.shape[0]):
-                    if dot.data[i].isnan():
-                        print('(%d): %1.8f' % (i, dot[i]))
-
-        dot[dot>=1.0] -= float(1e-6)
-        sigma = dot.acos()
         # In this break point, sigma cause nan, due to
-        # if dot's element is 1.0 or -1.0, dot.acos() is nan.
-        print(dot[dot >= 1.0].sum())
-        # print(dot.cpu().tolist())
-        if torch.any(sigma.data.isnan()):
-            print('find sigma\'s NaN!', sigma.shape)
-            for i in range(sigma.data.shape[0]):
-                    if sigma.data[i].isnan():
-                        print('(%d): %1.8f,  %1.8f' % (i, sigma[i], dot[i]))
-
-
+        # if dot's element is 1.0 or -1.0, dot.acos() is nan. so minus 1e-8
+        dot[dot>=1.0] -= float(1e-8)
+        sigma = dot.acos()
         sin_sigma = torch.sin(sigma)
-        if torch.any(sin_sigma.data.isnan()):
-            print('find sin_sigma\'s NaN!', sin_sigma.shape)
-            for i in range(sin_sigma.data.shape[0]):
-                    if sin_sigma.data[i].isnan():
-                        print('(%d): %1.8f' % (i, sin_sigma[i]))
-
         sl = torch.sin((1.0 - tau) * sigma) / sin_sigma
-        if torch.any(sl.data.isnan()):
-            print('find sl\'s NaN!', sl.shape)
-            for i in range(sl.data.shape[0]):
-                    if sl.data[i].isnan():
-                        print('(%d)' % (i))
-
         sr = torch.sin(tau * sigma) / sin_sigma
-        if torch.any(sr.data.isnan()):
-            print('find sr\'s NaN!', sr.shape)
-            for i in range(sr.data.shape[0]):
-                    if sr.data[i].isnan():
-                        print('(%d)' % (i))
-
         q = sl.unsqueeze(1) * ql + sr.unsqueeze(1) * qr
         q = q / q.norm(dim=1, keepdim=True)
         return q
