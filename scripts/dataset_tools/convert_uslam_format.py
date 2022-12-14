@@ -1,15 +1,16 @@
-#!/usr/bin/env python2
-
 import os
 import argparse
-
+from pathlib import Path
 import numpy as np
 
+from colorama import init, Fore, Style
+init(autoreset=True)
 
-def extract(gt, out_filename):
+def extract(source_fn, out_filename):
     fout = open(out_filename, 'w')
     fout.write('# timestamp tx ty tz qx qy qz qw\n')
-    with open(gt, 'rb') as fin:
+
+    with open(source_fn, 'rb') as fin:
         data = np.genfromtxt(fin, delimiter=",", skip_header=1)
         for l in data:
             fout.write('%.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f\n' %
@@ -21,8 +22,19 @@ if __name__ == '__main__':
     Extracts pose from a csv file in ASL format to space separated format.
     Quaternion is ordered as [x y z w]
     ''')
-    parser.add_argument('--input_dir', default='', required=True)
+    parser.add_argument('--single_file', type=str, default=None)
+    parser.add_argument('--input_dir', default='')
     args = parser.parse_args()
+
+    print(Fore.GREEN+'RUN::convert uslam_traj format to eval format')
+    if args.single_file is not None:
+        source_fn = Path(args.single_file)
+        source_dir = source_fn.parent
+        result_fn = source_dir / 'estimate.txt'
+        extract(source_fn, result_fn)
+        print(' - source_fn: %s' % source_fn)
+        print(' - result_fn: %s' % result_fn)
+        exit(0)
 
     from os import listdir
     dirs = [f for f in listdir(args.input_dir)]
