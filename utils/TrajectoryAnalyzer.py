@@ -32,7 +32,8 @@ class TrajectoryAnalyzer:
         - c: normally means scale factor
     """
 
-    def __init__(self, single_dir:str=None, root_dir:str=None, gt_abs_path:str=None, estimate_dir_prefix:str='event_imu_', use_cache=False):
+    def __init__(self, single_dir:str=None, root_dir:str=None, gt_abs_path:str=None,
+                 start:float=None, end:float=None, estimate_dir_prefix:str='event_imu_', use_cache=False):
         assert (gt_abs_path is not None and os.path.exists(gt_abs_path)), Fore.RED+'You need to specify an absolute path for proper GT file'
 
         self.gt_abs_path = Path(gt_abs_path)
@@ -53,18 +54,18 @@ class TrajectoryAnalyzer:
                 raise AssertionError(Fore.RED+'%s doesn\'t exists!'%estimate_path.name)
 
             if not cache_path.exists() or not use_cache:
-                estimate = Trajectory(use_file=True, trajectory_file_abs_path=estimate_path)
+                estimate = Trajectory(use_file=True, trajectory_file_abs_path=estimate_path, start=start, end=end)
                 TrajectoryParser.parse_trajectory(estimate, self.gt, cache_path)
             else:
                 print(Fore.GREEN+Style.DIM+'[info] -- %s file exists in %s' % (cache_path.name, single_dir.name))
 
             cache:dict = torch.load(cache_path)
-            print(cache.keys())
 
             if not plot_dir.exists():
                 os.mkdir(plot_dir)
 
             self.plot_all(cache, plot_dir)
+            self.dump(cache, plot_dir)
             exit(0)
 
         self.root_dir = Path(root_dir)
@@ -97,10 +98,49 @@ class TrajectoryAnalyzer:
                 os.mkdir(plot_dir)
 
             self.plot_all(cache, plot_dir)
+            self.dump(cache, plot_dir)
+
             print()
 
         self.abs_error_dict = {}
         self.rel_error_dict = {}
+
+    def dump(self, cache:dict, plot_dir:Path):
+
+        result_dir:dict = {}
+
+        abs_t_traveled_gt = cache['abs_t_traveled_gt']
+        total_distance = abs_t_traveled_gt[-1].item()
+        result_dir['total_distance'] = total_distance
+
+        gt = cache['abs_t_gt']
+        est = cache['abs_t_est']
+        error = gt - est
+        error_norm = torch.norm(error, dim=1)
+        result_dir['abs_t_mean_error'] = error_norm.mean().item()
+
+        abs_t_error_norm_percent = error_norm.mean() / total_distance
+        result_dir['mean_position_error'] = abs_t_error_norm_percent.item()
+
+        abs_r_error = torch.rad2deg(cache['abs_r_error'])
+        abs_r_error_norm = abs_r_error.norm(dim=1)
+        result_dir['abs_r_rmse_error'] = abs_r_error_norm.mean().item()
+
+        abs_ypr_error = cache['abs_ypr_error']
+        abs_yaw_error = torch.abs(abs_ypr_error[:, 0])
+        abs_yaw_mean_error = abs_yaw_error.mean() / total_distance
+        result_dir['mean_yaw_error'] = abs_yaw_mean_error.item()
+
+
+        result_dir['last_position_error_ratio'] = error_norm[-1].item() / total_distance
+        result_dir['last_yaw_error_ratio'] = abs_yaw_error[-1].item() / total_distance
+
+        yaml_fn = plot_dir / 'other_numeric_results.yaml'
+        import yaml
+        with open(yaml_fn, 'w', encoding = 'utf-8') as f:
+            yaml.dump(result_dir, f, default_flow_style=False)
+
+        # perform file operations
 
     def plot_all(self, cache:dict, plot_dir:Path):
         ######################### Dict Keys ###############
@@ -118,8 +158,11 @@ class TrajectoryAnalyzer:
         # self.plot_3d_traj(cache, plot_dir)
         self.plot_abs_t(cache, plot_dir)
         self.plot_abs_t_error(cache, plot_dir)
-        # self.plot_absolute_r(cache['timestamp_sec'], cache['abs_r_est'], cache['abs_r_gt'], plot_dir=plot_dir)
-        # self.plot_absolute_q(cache['timestamp_sec'], cache['abs_q_xyzw_est'], cache['abs_q_xyzw_gt'], plot_dir=plot_dir)
+        self.plot_abs_r(cache, plot_dir)
+        self.plot_abs_r_error(cache, plot_dir)
+        self.plot_abs_q(cache, plot_dir)
+        self.plot_abs_yaw(cache, plot_dir)
+
         # self.plot_absolute_ypr_error(cache['timestamp_sec'], cache['abs_ypr_error'], plot_dir=plot_dir)
         # self.plot_yaw_error_per_meter(cache, plot_dir=plot_dir)
         # self.plot_relative_errors(cache, plot_dir=plot_dir)
@@ -128,6 +171,7 @@ class TrajectoryAnalyzer:
     def plot_3d_traj(self, cache, plot_dir:Path):
         abs_t_est = cache['abs_t_est']
         abs_t_gt = cache['abs_t_gt']
+        abs_t_est = abs_t_est + (abs_t_gt[0] - abs_t_est[0]).reshape((1, 3))
         xs_gt = abs_t_gt[:, 0].cpu()
         ys_gt = abs_t_gt[:, 1].cpu()
         zs_gt = abs_t_gt[:, 2].cpu()
@@ -143,9 +187,10 @@ class TrajectoryAnalyzer:
 
         fontlabel = {"fontsize":"large", "color":"gray", "fontweight":"bold"}
 
-        ax0.set_xlabel("X", fontdict=fontlabel, labelpad=10)
-        ax0.set_ylabel("Y", fontdict=fontlabel, labelpad=10)
-        ax0.set_title("Z", fontdict=fontlabel)
+        ax0.set_title('3D trajectory plot', fontdict=fontlabel)
+        ax0.set_xlabel("X [m]", fontdict=fontlabel, labelpad=10)
+        ax0.set_ylabel("Y [m]", fontdict=fontlabel, labelpad=10)
+        ax0.set_zlabel("Z [m]", fontdict=fontlabel, labelpad=10)
         ax0.set_xlim(xs_est.min()-0.1, xs_est.max()+0.1)
         ax0.set_ylim(ys_est.min()-0.1, ys_est.max()+0.1)
         ax0.set_zlim(zs_est.min()-0.1, zs_est.max()+0.1)
@@ -222,9 +267,10 @@ class TrajectoryAnalyzer:
         # ax = fig.add_subplot(221, projection="3d")
 
         def init():
-            ax.set_xlabel("X", fontdict=fontlabel, labelpad=10)
-            ax.set_ylabel("Y", fontdict=fontlabel, labelpad=10)
-            ax.set_title("Z", fontdict=fontlabel)
+            ax.set_title('3D trajectory plot', fontdict=fontlabel)
+            ax.set_xlabel("X [m]", fontdict=fontlabel, labelpad=10)
+            ax.set_ylabel("Y [m]", fontdict=fontlabel, labelpad=10)
+            ax.set_zlabel("Z [m]", fontdict=fontlabel, labelpad=10)
             ax.set_xlim(xs_est.min()-0.1, xs_est.max()+0.1)
             ax.set_ylim(ys_est.min()-0.1, ys_est.max()+0.1)
             ax.set_zlim(zs_est.min()-0.1, zs_est.max()+0.1)
@@ -258,7 +304,7 @@ class TrajectoryAnalyzer:
         est = cache['abs_t_est']
 
         fig, axs = plt.subplots(nrows=3, ncols=1, figsize=(9, 9), dpi=200)
-        fig.suptitle('Absolute Translation', fontsize=20)
+        fig.suptitle('Absolute Translation (SE3 Alignment)', fontsize=18)
 
         axs[0].set_title('x-axis [m]', {'fontsize':16,'fontweight':2})
         axs[0].plot(time, gt.cpu().numpy()[:, 0],  'k', linewidth=1, label="GT")
@@ -276,6 +322,30 @@ class TrajectoryAnalyzer:
         axs[2].legend(loc='best')
 
         fn = plot_dir / 'abs_t.png'
+        fig.tight_layout()
+        fig.savefig(fn)
+        plt.close(fig)
+
+        est = est + (gt[0] - est[0]).reshape((1, 3))
+        fig, axs = plt.subplots(nrows=3, ncols=1, figsize=(9, 9), dpi=200)
+        fig.suptitle('Absolute Translation (match initial point)', fontsize=18)
+
+        axs[0].set_title('x-axis [m]', {'fontsize':16,'fontweight':2})
+        axs[0].plot(time, gt.cpu().numpy()[:, 0],  'k', linewidth=1, label="GT")
+        axs[0].plot(time, est.cpu().numpy()[:, 0],  'b', linewidth=1, label="est.ba")
+        axs[0].legend(loc='best')
+
+        axs[1].set_title('y-axis [m]', {'fontsize':16,'fontweight':2})
+        axs[1].plot(time, gt.cpu().numpy()[:, 1],  'k', linewidth=1, label="GT")
+        axs[1].plot(time, est.cpu().numpy()[:, 1],  'b', linewidth=1, label="est.ba")
+        axs[1].legend(loc='best')
+
+        axs[2].set_title('z-axis [m]', {'fontsize':16,'fontweight':2})
+        axs[2].plot(time, gt.cpu().numpy()[:, 2],  'k', linewidth=1, label="GT")
+        axs[2].plot(time, est.cpu().numpy()[:, 2],  'b', linewidth=1, label="est.ba")
+        axs[2].legend(loc='best')
+
+        fn = plot_dir / 'abs_t_init.png'
         fig.tight_layout()
         fig.savefig(fn)
         plt.close(fig)
@@ -312,74 +382,122 @@ class TrajectoryAnalyzer:
         fig.savefig(fn)
         plt.close(fig)
 
-    def plot_absolute_q(self, time:torch.Tensor, est:torch.Tensor, gt:torch.Tensor, plot_dir:Path):
-        fig, axs = plt.subplots(nrows=4, ncols=1, figsize=(8, 10), dpi=200)
-        fig.suptitle('Absolute quaternion', fontsize=16)
+    def plot_abs_r(self, cache:dict, plot_dir:Path):
+        time = cache['timestamp_sec']
+        est = torch.rad2deg(cache['abs_r_est'])
+        gt = torch.rad2deg(cache['abs_r_gt'])
 
-        mask = (est[:, 3] * gt[:, 3]) < 0
-        est[mask] = -est[mask]
-        mask = torch.abs(est[:, 0] - gt[:, 0]) > 1.0
-        est[mask] = -est[mask]
-        mask = torch.abs(est[:, 1] - gt[:, 1]) > 1.0
-        est[mask] = -est[mask]
-        mask = torch.abs(est[:, 2] - gt[:, 2]) > 1.0
-        est[mask] = -est[mask]
-
-        axs[0].set_ylim(-1, 1.0)
-        axs[0].set_ylabel('qx', fontdict={'fontsize':10,'fontweight':'bold'})
-        axs[0].plot(time, est.cpu().numpy()[:, 0],  'b', linewidth=1, label="est[deg]")
-        axs[0].plot(time, gt.cpu().numpy()[:, 0],  'k', linewidth=1, label="gt[deg]")
-        axs[0].legend(loc='best')
-
-        axs[1].set_ylim(-1, 1.0)
-        axs[1].set_ylabel('qy', fontdict={'fontsize':10,'fontweight':'bold'})
-        axs[1].plot(time, est.cpu().numpy()[:, 1],  'b', linewidth=1, label="est[deg]")
-        axs[1].plot(time, gt.cpu().numpy()[:, 1],  'k', linewidth=1, label="gt[deg]")
-        axs[1].legend(loc='best')
-
-        axs[2].set_ylim(-1, 1.0)
-        axs[2].set_ylabel('qz', fontdict={'fontsize':10,'fontweight':'bold'})
-        axs[2].plot(time, est.cpu().numpy()[:, 2],  'b', linewidth=1, label="est[deg]")
-        axs[2].plot(time, gt.cpu().numpy()[:, 2],  'k', linewidth=1, label="gt[deg]")
-        axs[2].legend(loc='best')
-
-        axs[3].set_ylim(-1, 1.0)
-        axs[3].set_ylabel('qw', fontdict={'fontsize':10,'fontweight':'bold'})
-        axs[3].plot(time, est.cpu().numpy()[:, 3],  'b', linewidth=1, label="est[deg]")
-        axs[3].plot(time, gt.cpu().numpy()[:, 3],  'k', linewidth=1, label="gt[deg]")
-        axs[3].legend(loc='best')
-
-        fn = plot_dir / 'absolute_q.png'
-        fig.tight_layout()
-        fig.savefig(fn)
-        plt.close(fig)
-
-    def plot_absolute_r(self, time:torch.Tensor, est:torch.Tensor, gt:torch.Tensor, plot_dir:Path):
         fig, axs = plt.subplots(nrows=3, ncols=1, figsize=(9, 9), dpi=200)
         fig.suptitle('Absolute Rotation Vector', fontsize=16)
 
-        axs[0].set_ylim(-180.0, 180.0)
         axs[0].set_ylabel('wx [deg]', fontdict={'fontsize':10,'fontweight':'bold'})
         axs[0].plot(time, est.cpu().numpy()[:, 0],  'b', linewidth=1, label="est[deg]")
         axs[0].plot(time, gt.cpu().numpy()[:, 0],  'k', linewidth=1, label="gt[deg]")
         axs[0].legend(loc='best')
 
-        axs[1].set_ylim(-180.0, 180.0)
         axs[1].set_ylabel('wy [deg]', fontdict={'fontsize':10,'fontweight':'bold'})
         axs[1].plot(time, est.cpu().numpy()[:, 1],  'b', linewidth=1, label="est[deg]")
         axs[1].plot(time, gt.cpu().numpy()[:, 1],  'k', linewidth=1, label="gt[deg]")
         axs[1].legend(loc='best')
 
-        axs[2].set_ylim(-180.0, 180.0)
         axs[2].set_ylabel('wz error [deg]', fontdict={'fontsize':10,'fontweight':'bold'})
         axs[2].plot(time, est.cpu().numpy()[:, 2],  'b', linewidth=1, label="est[deg]")
         axs[2].plot(time, gt.cpu().numpy()[:, 2],  'k', linewidth=1, label="gt[deg]")
         axs[2].legend(loc='best')
 
-        fn = plot_dir / 'absolute_r.png'
+        fn = plot_dir / 'abs_r.png'
         fig.tight_layout()
         fig.savefig(fn)
         plt.close(fig)
+
+    def plot_abs_r_error(self, cache:dict, plot_dir:Path):
+        time = cache['timestamp_sec']
+        error = torch.rad2deg(cache['abs_r_error'])
+
+        fig, axs = plt.subplots(nrows=3, ncols=1, figsize=(9, 9), dpi=200)
+        fig.suptitle('Absolute Rotation Vector', fontsize=16)
+
+        axs[0].set_ylabel('wx [deg]', fontdict={'fontsize':10,'fontweight':'bold'})
+        axs[0].plot(time, error.cpu().numpy()[:, 0],  'b', linewidth=1, label="err[deg]")
+        axs[0].legend(loc='best')
+
+        axs[1].set_ylabel('wy [deg]', fontdict={'fontsize':10,'fontweight':'bold'})
+        axs[1].plot(time, error.cpu().numpy()[:, 1],  'b', linewidth=1, label="err[deg]")
+        axs[1].legend(loc='best')
+
+        axs[2].set_ylabel('wz error [deg]', fontdict={'fontsize':10,'fontweight':'bold'})
+        axs[2].plot(time, error.cpu().numpy()[:, 2],  'b', linewidth=1, label="err[deg]")
+        axs[2].legend(loc='best')
+
+        fn = plot_dir / 'abs_r_error.png'
+        fig.tight_layout()
+        fig.savefig(fn)
+        plt.close(fig)
+
+    def plot_abs_q(self, cache:dict, plot_dir:Path):
+        time = cache['timestamp_sec']
+        est = cache['abs_q_xyzw_est']
+        gt = cache['abs_q_xyzw_gt']
+
+        fig, axs = plt.subplots(nrows=4, ncols=1, figsize=(9, 12), dpi=200)
+        fig.suptitle('Absolute quaternion', fontsize=16)
+
+        est[est[:,3] < 0] = -est[est[:,3] < 0]
+        gt[gt[:,3] < 0] = -gt[gt[:,3] < 0]
+
+        # mask = (est[:, 3] * gt[:, 3]) < 0
+        # est[mask] = -est[mask]
+        # mask = torch.abs(est[:, 0] - gt[:, 0]) > 1.0
+        # est[mask] = -est[mask]
+        # mask = torch.abs(est[:, 1] - gt[:, 1]) > 1.0
+        # est[mask] = -est[mask]
+        # mask = torch.abs(est[:, 2] - gt[:, 2]) > 1.0
+        # est[mask] = -est[mask]
+
+        axs[0].set_ylabel('qx', fontdict={'fontsize':10,'fontweight':'bold'})
+        axs[0].plot(time, est.cpu().numpy()[:, 0],  'b', linewidth=1, label="est")
+        axs[0].plot(time, gt.cpu().numpy()[:, 0],  'k', linewidth=1, label="gt")
+        axs[0].legend(loc='best')
+
+        axs[1].set_ylabel('qy', fontdict={'fontsize':10,'fontweight':'bold'})
+        axs[1].plot(time, est.cpu().numpy()[:, 1],  'b', linewidth=1, label="est")
+        axs[1].plot(time, gt.cpu().numpy()[:, 1],  'k', linewidth=1, label="gt")
+        axs[1].legend(loc='best')
+
+        axs[2].set_ylabel('qz', fontdict={'fontsize':10,'fontweight':'bold'})
+        axs[2].plot(time, est.cpu().numpy()[:, 2],  'b', linewidth=1, label="est")
+        axs[2].plot(time, gt.cpu().numpy()[:, 2],  'k', linewidth=1, label="gt")
+        axs[2].legend(loc='best')
+
+        axs[3].set_ylabel('qw', fontdict={'fontsize':10,'fontweight':'bold'})
+        axs[3].plot(time, est.cpu().numpy()[:, 3],  'b', linewidth=1, label="est")
+        axs[3].plot(time, gt.cpu().numpy()[:, 3],  'k', linewidth=1, label="gt")
+        axs[3].legend(loc='best')
+
+        fn = plot_dir / 'abs_q_xyzw.png'
+        fig.tight_layout()
+        fig.savefig(fn)
+        plt.close(fig)
+
+    def plot_abs_yaw(self, cache:dict, plot_dir:Path):
+        time = cache['timestamp_sec']
+        est = torch.rad2deg(cache['abs_ypr_est'][:, 0])
+        gt = torch.rad2deg(cache['abs_ypr_gt'][:, 0])
+        est = est + (gt[0] - est[0])
+
+        fig, ax = plt.subplots(figsize=(9, 3), dpi=200)
+        fig.suptitle('absolute yaw', fontsize=16)
+
+        ax.set_ylabel('yaw [deg]', fontdict={'fontsize':10,'fontweight':'bold'})
+        ax.plot(time, est.cpu().numpy(),  'b', linewidth=1, label="est.")
+        ax.plot(time, gt.cpu().numpy(),  'k', linewidth=1, label="gt")
+        ax.legend(loc='best')
+
+        fn = plot_dir / 'abs_yaw.png'
+        fig.tight_layout()
+        fig.savefig(fn)
+        plt.close(fig)
+
 
     def plot_absolute_ypr_error(self, time:torch.Tensor, error:torch.Tensor, plot_dir:Path):
         fig, axs = plt.subplots(nrows=3, ncols=1, figsize=(9, 9), dpi=200)
@@ -434,32 +552,6 @@ class TrajectoryAnalyzer:
     #     fig.savefig(fn)
     #     plt.close(fig)
 
-    def plot_abs_r_error(self, time:torch.Tensor, error:torch.Tensor, plot_dir:Path):
-        fig, axs = plt.subplots(nrows=4, ncols=1, figsize=(9, 6), dpi=200)
-        fig.suptitle('Absolute Rotation Vector Errors', fontsize=14)
-
-        axs[0].set_title('x-axis [deg]', {'fontsize':12,'fontweight':2})
-        axs[0].plot(time, error.cpu().numpy()[:, 0],  'k', linewidth=1, label="x")
-        axs[0].legend(loc='best')
-
-        axs[1].set_title('y-axis [deg]', {'fontsize':12,'fontweight':2})
-        axs[1].plot(time, error.cpu().numpy()[:, 1],  'k', linewidth=1, label="y")
-        axs[1].legend(loc='best')
-
-        axs[2].set_title('z-axis [deg]', {'fontsize':12,'fontweight':2})
-        axs[2].plot(time, error.cpu().numpy()[:, 2],  'k', linewidth=1, label="z")
-        axs[2].legend(loc='best')
-
-        error_norm = error.norm(dim=1)
-        axs[3].set_title('error norm [deg]', {'fontsize':12,'fontweight':2})
-        axs[3].plot(time, error_norm.cpu().numpy(),  'k', linewidth=1, label="norm")
-        axs[3].legend(loc='best')
-
-        fn = plot_dir / 'abs_r_error.png'
-        fig.tight_layout()
-        fig.savefig(fn)
-        plt.close(fig)
-
     def plot_yaw_error_per_meter(self, cache:dict, plot_dir:Path):
         yaw_error_per_meter = cache['yaw_error_per_meter']
         yaw_error_per_meter_t = cache['yaw_error_per_meter_t']
@@ -506,7 +598,7 @@ if __name__ == '__main__':
 
     eval = TrajectoryAnalyzer(single_dir='/data/RESULT/dynamic_6dof',root_dir=None,
                               gt_abs_path='/data/RESULT/dynamic_6dof/stamped_groundtruth.txt',
-                              use_cache=True)
+                              start=None, end=None, use_cache=False)
 
     # def save_interpolated_gt_n_estimate(self, estimate:Trajectory, gt:Trajectory, save_dir:Path):
     #     est_ts = estimate.times.data
