@@ -32,25 +32,50 @@ class TrajectoryAnalyzer:
         - c: normally means scale factor
     """
 
-    def __init__(self, root_dir:str=None, gt_abs_path:str=None, estimate_dir_prefix:str='event_imu_', use_cache=False):
-        assert (root_dir is not None and os.path.exists(root_dir)), Fore.RED+'You need to specify root directory containing estimates and ground-truth files'
+    def __init__(self, single_dir:str=None, root_dir:str=None, gt_abs_path:str=None, estimate_dir_prefix:str='event_imu_', use_cache=False):
         assert (gt_abs_path is not None and os.path.exists(gt_abs_path)), Fore.RED+'You need to specify an absolute path for proper GT file'
 
-        self.root_dir = Path(root_dir)
         self.gt_abs_path = Path(gt_abs_path)
         self.use_cache = use_cache
         self.cudable = torch.cuda.is_available()
 
+        # Extract GT first
+        self.gt = Trajectory(use_file=True, trajectory_file_abs_path=self.gt_abs_path)
+        print(Fore.RED+Style.DIM+'GT::path::%s'%gt_abs_path)
+
+        if single_dir is not None:
+            single_dir = Path(single_dir)
+            print(Fore.GREEN+'EVAL::single -- %s' % single_dir.name)
+            estimate_path          = single_dir / 'estimate.txt'
+            cache_path             = single_dir / 'cache_dict.pt'
+            plot_dir               = single_dir / 'plots'
+            if not estimate_path.exists():
+                raise AssertionError(Fore.RED+'%s doesn\'t exists!'%estimate_path.name)
+
+            if not cache_path.exists() or not use_cache:
+                estimate = Trajectory(use_file=True, trajectory_file_abs_path=estimate_path)
+                TrajectoryParser.parse_trajectory(estimate, self.gt, cache_path)
+            else:
+                print(Fore.GREEN+Style.DIM+'[info] -- %s file exists in %s' % (cache_path.name, single_dir.name))
+
+            cache:dict = torch.load(cache_path)
+            print(cache.keys())
+
+            if not plot_dir.exists():
+                os.mkdir(plot_dir)
+
+            self.plot_all(cache, plot_dir)
+            exit(0)
+
+        self.root_dir = Path(root_dir)
+        assert (root_dir is not None and os.path.exists(root_dir)), Fore.RED+'You need to specify root directory containing estimates and ground-truth files'
         self.dirs = list(self.root_dir.glob(estimate_dir_prefix+'*'))
         self.dirs.sort()
 
         print(Fore.GREEN+'Registered subdirs:')
         for dir in self.dirs:
             print('- %s'%dir)
-        print('+ %s -- [GT]\n'%gt_abs_path)
 
-        self.gt = Trajectory(use_file=True, trajectory_file_abs_path=self.gt_abs_path)
-        print()
 
         for dir in self.dirs:
             print(Fore.GREEN+'%s Processing ... ' % dir.name)
@@ -68,34 +93,224 @@ class TrajectoryAnalyzer:
                 print(Fore.GREEN+Style.DIM+'[info] -- %s file exists in %s' % (cache_path.name, dir.name))
 
             cache:dict = torch.load(cache_path)
-            print(cache.keys())
-
-            ######################### Dict Keys #########################################
-            # timestamp_sec             # abs_ypr_error            # rel_timestamp_sec  #
-            # abs_t_est                 # abs_yaw_error            # rel_t_est          #
-            # abs_t_gt                  # yaw_traveled             # rel_q_xyzw_est     #
-            # abs_t_error               # abs_yaw_error_percent    # rel_t_gt           #
-            # abs_t_error_norm          # yaw_error_per_meter      # rel_q_xyzw_gt      #
-            # abs_t_error_norm_percent  # abs_yaw_error_per_meter  # rel_t_error        #
-            # t_traveled_gt             # abs_q_xyzw_est           # rel_t_error_norm   #
-            # abs_r_est                 # abs_q_xyzw_gt            # rel_r_error        #
-            # abs_r_gt                                             # rel_r_error_norm   #
-            #############################################################################
             if not plot_dir.exists():
                 os.mkdir(plot_dir)
 
-            self.plot_absolute_t_error(cache['timestamp_sec'], cache['abs_t_est'], cache['abs_t_gt'], plot_dir=plot_dir)
-            self.plot_absolute_r(cache['timestamp_sec'], cache['abs_r_est'], cache['abs_r_gt'], plot_dir=plot_dir)
-            self.plot_absolute_q(cache['timestamp_sec'], cache['abs_q_xyzw_est'], cache['abs_q_xyzw_gt'], plot_dir=plot_dir)
-            self.plot_abs_t_error_norm_percent(cache['t_traveled_gt'], cache['abs_t_error_norm_percent'], plot_dir=plot_dir)
-            self.plot_absolute_ypr_error(cache['timestamp_sec'], cache['abs_ypr_error'], plot_dir=plot_dir)
-            self.plot_abs_yaw_error_norm_percent(cache['yaw_traveled'], cache['abs_yaw_error_percent'], plot_dir=plot_dir)
-            self.plot_abs_yaw_error_per_meter(cache['t_traveled_gt'], cache['abs_yaw_error'], plot_dir=plot_dir)
-            self.plot_relative_errors(cache['rel_timestamp_sec'], cache['rel_t_error'], cache['rel_r_error'], plot_dir=plot_dir)
+            self.plot_all(cache, plot_dir)
             print()
 
         self.abs_error_dict = {}
         self.rel_error_dict = {}
+
+    def plot_all(self, cache:dict, plot_dir:Path):
+        ######################### Dict Keys ###############
+        # abs_t_est             # abs_q_xyzw_est          #
+        # abs_t_gt              # abs_q_xyzw_gt           #
+        # abs_r_est             # rel_t_est               #
+        # abs_r_gt              # rel_t_gt                #
+        # abs_ypr_est           # rel_t_error             #
+        # abs_ypr_gt            # rel_yaw_gt              #
+        # abs_t_error           # yaw_traveled_gt         #
+        # abs_r_error           # yaw_error_per_meter     #
+        # abs_q_xyzw_error      # yaw_error_per_meter_t   #
+        # abs_ypr_error         # timestamp_sec           #
+        ###################################################
+        # self.plot_3d_traj(cache, plot_dir)
+        self.plot_abs_t(cache, plot_dir)
+        self.plot_abs_t_error(cache, plot_dir)
+        # self.plot_absolute_r(cache['timestamp_sec'], cache['abs_r_est'], cache['abs_r_gt'], plot_dir=plot_dir)
+        # self.plot_absolute_q(cache['timestamp_sec'], cache['abs_q_xyzw_est'], cache['abs_q_xyzw_gt'], plot_dir=plot_dir)
+        # self.plot_absolute_ypr_error(cache['timestamp_sec'], cache['abs_ypr_error'], plot_dir=plot_dir)
+        # self.plot_yaw_error_per_meter(cache, plot_dir=plot_dir)
+        # self.plot_relative_errors(cache, plot_dir=plot_dir)
+        # self.plot_abs_r_error(cache['timestamp_sec'], cache['abs_r_error'], plot_dir=plot_dir)
+
+    def plot_3d_traj(self, cache, plot_dir:Path):
+        abs_t_est = cache['abs_t_est']
+        abs_t_gt = cache['abs_t_gt']
+        xs_gt = abs_t_gt[:, 0].cpu()
+        ys_gt = abs_t_gt[:, 1].cpu()
+        zs_gt = abs_t_gt[:, 2].cpu()
+        xs_est = abs_t_est[:, 0].cpu()
+        ys_est = abs_t_est[:, 1].cpu()
+        zs_est = abs_t_est[:, 2].cpu()
+
+        fig = plt.figure(figsize=(8, 8), dpi=200)
+        ax0 = fig.add_subplot(221, projection="3d")
+        ax1 = fig.add_subplot(222)
+        ax2 = fig.add_subplot(223)
+        ax3 = fig.add_subplot(224)
+
+        fontlabel = {"fontsize":"large", "color":"gray", "fontweight":"bold"}
+
+        ax0.set_xlabel("X", fontdict=fontlabel, labelpad=10)
+        ax0.set_ylabel("Y", fontdict=fontlabel, labelpad=10)
+        ax0.set_title("Z", fontdict=fontlabel)
+        ax0.set_xlim(xs_est.min()-0.1, xs_est.max()+0.1)
+        ax0.set_ylim(ys_est.min()-0.1, ys_est.max()+0.1)
+        ax0.set_zlim(zs_est.min()-0.1, zs_est.max()+0.1)
+        ax0.view_init(elev=30., azim=120)    # 각도 지정
+
+        # Ref: https://stackoverflow.com/questions/40489378/matplotlib-how-to-efficiently-plot-a-large-number-of-line-segments-in-3d
+        from mpl_toolkits.mplot3d.art3d import Line3DCollection
+        lines_gt = torch.hstack([abs_t_gt[:-1], abs_t_gt[1:]]).cpu()
+        lines_gt = lines_gt.reshape((-1, 2, 3))
+        lines_collection_gt = Line3DCollection(lines_gt, linewidths=0.8, colors='k')
+        ax0.add_collection(lines_collection_gt)
+
+        lines_est = torch.hstack([abs_t_est[:-1], abs_t_est[1:]]).cpu()
+        lines_est = lines_est.reshape((-1, 2, 3))
+        lines_collection_est = Line3DCollection(lines_est, linewidths=0.8, colors='b')
+        ax0.add_collection(lines_collection_est)
+
+        from matplotlib.collections import LineCollection
+
+        # Plot XY Plane :: Ref :: https://matplotlib.org/stable/gallery/shapes_and_collections/line_collection.html
+        ax1.set_title("XY plane", fontdict=fontlabel)
+        ax1.set_xlabel("X", fontdict=fontlabel, labelpad=10)
+        ax1.set_ylabel("Y", fontdict=fontlabel, labelpad=10)
+        ax1.set_xlim(xs_est.min()-0.1, xs_est.max()+0.1)
+        ax1.set_ylim(ys_est.min()-0.1, ys_est.max()+0.1)
+        xys_gt = torch.stack([xs_gt, ys_gt], dim=1)
+        xys_est = torch.stack([xs_est, ys_est], dim=1)
+        xy_lines_gt = torch.hstack([xys_gt[:-1], xys_gt[1:]]).reshape((-1, 2, 2)).numpy()
+        xy_line_collection_gt = LineCollection(xy_lines_gt, linewidths=0.8, colors='k', linestyle='solid')
+        xy_lines_est = torch.hstack([xys_est[:-1], xys_est[1:]]).reshape((-1, 2, 2)).numpy()
+        xy_line_collection_est = LineCollection(xy_lines_est, linewidths=0.8, colors='b', linestyle='solid')
+        ax1.add_collection(xy_line_collection_gt)
+        ax1.add_collection(xy_line_collection_est)
+        # Plot YZ Plane
+        ax2.set_title("YZ plane", fontdict=fontlabel)
+        ax2.set_xlabel("Y", fontdict=fontlabel, labelpad=10)
+        ax2.set_ylabel("Z", fontdict=fontlabel, labelpad=10)
+        ax2.set_xlim(ys_est.min()-0.1, ys_est.max()+0.1)
+        ax2.set_ylim(zs_est.min()-0.1, zs_est.max()+0.1)
+        yzs_gt = torch.stack([ys_gt, zs_gt], dim=1)
+        yzs_est = torch.stack([ys_est, zs_est], dim=1)
+        yz_lines_gt = torch.hstack([yzs_gt[:-1], yzs_gt[1:]]).reshape(-1, 2, 2).numpy()
+        yz_line_collection_gt = LineCollection(yz_lines_gt, linewidths=0.8, colors='k', linestyle='solid')
+        yz_lines_est = torch.hstack([yzs_est[:-1], yzs_est[1:]]).reshape(-1, 2, 2).numpy()
+        yz_line_collection_est = LineCollection(yz_lines_est, linewidths=0.8, colors='b', linestyle='solid')
+        ax2.add_collection(yz_line_collection_gt)
+        ax2.add_collection(yz_line_collection_est)
+        # Plot XZ Plane
+        ax3.set_title("XZ plane", fontdict=fontlabel)
+        ax3.set_xlabel("X", fontdict=fontlabel, labelpad=10)
+        ax3.set_ylabel("Z", fontdict=fontlabel, labelpad=10)
+        ax3.set_xlim(xs_est.min()-0.1, xs_est.max()+0.1)
+        ax3.set_ylim(zs_est.min()-0.1, zs_est.max()+0.1)
+        xzs_gt = torch.stack([xs_gt, zs_gt], dim=1)
+        xzs_est = torch.stack([xs_est, zs_est], dim=1)
+        xz_lines_gt = torch.hstack([xzs_gt[:-1], xzs_gt[1:]]).reshape(-1, 2, 2).numpy()
+        xz_line_collection_gt = LineCollection(xz_lines_gt, linewidths=0.8, colors='k', linestyle='solid')
+        xz_lines_est = torch.hstack([xzs_est[:-1], xzs_est[1:]]).reshape(-1, 2, 2).numpy()
+        xz_line_collection_est = LineCollection(xz_lines_est, linewidths=0.8, colors='b', linestyle='solid')
+        ax3.add_collection(xz_line_collection_gt)
+        ax3.add_collection(xz_line_collection_est)
+
+        fn = plot_dir / '3d_plot.png'
+        fig.tight_layout()
+        fig.savefig(fn)
+        plt.close(fig)
+        print(Fore.GREEN+'PLOT::%s'%fn)
+
+        # Animate
+        from matplotlib import animation
+
+        fig, ax = plt.subplots(ncols=1, nrows=1, figsize=(6, 6), dpi=150, subplot_kw={"projection":"3d"})
+        # fig = plt.figure(figsize=(6, 6), dpi=150)
+        # ax = fig.add_subplot(221, projection="3d")
+
+        def init():
+            ax.set_xlabel("X", fontdict=fontlabel, labelpad=10)
+            ax.set_ylabel("Y", fontdict=fontlabel, labelpad=10)
+            ax.set_title("Z", fontdict=fontlabel)
+            ax.set_xlim(xs_est.min()-0.1, xs_est.max()+0.1)
+            ax.set_ylim(ys_est.min()-0.1, ys_est.max()+0.1)
+            ax.set_zlim(zs_est.min()-0.1, zs_est.max()+0.1)
+            # ax.view_init(elev=30., azim=120)    # 각도 지정
+
+            from mpl_toolkits.mplot3d.art3d import Line3DCollection
+            lines_gt = torch.hstack([abs_t_gt[:-1], abs_t_gt[1:]]).cpu()
+            lines_gt = lines_gt.reshape((-1, 2, 3))
+            lines_collection_gt = Line3DCollection(lines_gt, linewidths=0.5, colors='k')
+            ax.add_collection(lines_collection_gt)
+            lines_est = torch.hstack([abs_t_est[:-1], abs_t_est[1:]]).cpu()
+            lines_est = lines_est.reshape((-1, 2, 3))
+            lines_collection_est = Line3DCollection(lines_est, linewidths=0.5, colors='b')
+            ax.add_collection(lines_collection_est)
+            return fig
+
+        def animate(i):
+            ax.view_init(elev=30., azim=i)
+            return fig
+
+        animate_3d = animation.FuncAnimation(fig, animate, init_func=init,
+                                    frames=360, interval=20)
+        gif_fn = plot_dir / 'animate_3d.gif'
+        animate_3d.save(gif_fn, fps=30)
+        plt.close(fig)
+        print(Fore.GREEN+'PLOT::%s'%gif_fn)
+
+    def plot_abs_t(self, cache:dict, plot_dir:Path):
+        time = cache['timestamp_sec']
+        gt = cache['abs_t_gt']
+        est = cache['abs_t_est']
+
+        fig, axs = plt.subplots(nrows=3, ncols=1, figsize=(9, 9), dpi=200)
+        fig.suptitle('Absolute Translation', fontsize=20)
+
+        axs[0].set_title('x-axis [m]', {'fontsize':16,'fontweight':2})
+        axs[0].plot(time, gt.cpu().numpy()[:, 0],  'k', linewidth=1, label="GT")
+        axs[0].plot(time, est.cpu().numpy()[:, 0],  'b', linewidth=1, label="est.")
+        axs[0].legend(loc='best')
+
+        axs[1].set_title('y-axis [m]', {'fontsize':16,'fontweight':2})
+        axs[1].plot(time, gt.cpu().numpy()[:, 1],  'k', linewidth=1, label="GT")
+        axs[1].plot(time, est.cpu().numpy()[:, 1],  'b', linewidth=1, label="est.")
+        axs[1].legend(loc='best')
+
+        axs[2].set_title('z-axis [m]', {'fontsize':16,'fontweight':2})
+        axs[2].plot(time, gt.cpu().numpy()[:, 2],  'k', linewidth=1, label="GT")
+        axs[2].plot(time, est.cpu().numpy()[:, 2],  'b', linewidth=1, label="est.")
+        axs[2].legend(loc='best')
+
+        fn = plot_dir / 'abs_t.png'
+        fig.tight_layout()
+        fig.savefig(fn)
+        plt.close(fig)
+
+    def plot_abs_t_error(self, cache:dict, plot_dir:Path):
+        time = cache['timestamp_sec']
+        gt = cache['abs_t_gt']
+        est = cache['abs_t_est']
+        error = gt - est
+        error_norm = torch.norm(error, dim=1)
+
+        fig, axs = plt.subplots(nrows=4, ncols=1, figsize=(9, 10), dpi=200)
+        fig.suptitle('Absolute Translation', fontsize=20)
+
+        fontlabel = {'fontsize':14, "fontweight":"bold"}
+        axs[0].set_title('x-axis [m]', fontlabel)
+        axs[0].plot(time, error.cpu().numpy()[:, 0],  'k', linewidth=1.5, label="error")
+        axs[0].legend(loc='best')
+
+        axs[1].set_title('y-axis [m]', fontlabel)
+        axs[1].plot(time, error.cpu().numpy()[:, 1],  'k', linewidth=1.5, label="error")
+        axs[1].legend(loc='best')
+
+        axs[2].set_title('z-axis [m]', fontlabel)
+        axs[2].plot(time, error.cpu().numpy()[:, 2],  'k', linewidth=1.5, label="error")
+        axs[2].legend(loc='best')
+
+        axs[3].set_title('t error norm [m]', fontlabel)
+        axs[3].plot(time, error_norm.cpu().numpy(),  'k', linewidth=1.5, label="error")
+        axs[3].legend(loc='best')
+
+        fn = plot_dir / 'abs_t_error.png'
+        fig.tight_layout()
+        fig.savefig(fn)
+        plt.close(fig)
 
     def plot_absolute_q(self, time:torch.Tensor, est:torch.Tensor, gt:torch.Tensor, plot_dir:Path):
         fig, axs = plt.subplots(nrows=4, ncols=1, figsize=(8, 10), dpi=200)
@@ -135,7 +350,7 @@ class TrajectoryAnalyzer:
         axs[3].legend(loc='best')
 
         fn = plot_dir / 'absolute_q.png'
-        plt.tight_layout()
+        fig.tight_layout()
         fig.savefig(fn)
         plt.close(fig)
 
@@ -162,7 +377,7 @@ class TrajectoryAnalyzer:
         axs[2].legend(loc='best')
 
         fn = plot_dir / 'absolute_r.png'
-        plt.tight_layout()
+        fig.tight_layout()
         fig.savefig(fn)
         plt.close(fig)
 
@@ -184,76 +399,81 @@ class TrajectoryAnalyzer:
         axs[2].set_xlabel('Time [sec]', fontdict={'fontsize':12,'fontweight':'bold'})
 
         fn = plot_dir / 'absolute_ypr_error.png'
-        plt.tight_layout()
+        fig.tight_layout()
         fig.savefig(fn)
         plt.close(fig)
 
-    def plot_absolute_t_error(self, time:torch.Tensor, est:torch.Tensor, gt:torch.Tensor, plot_dir:Path):
-        fig, axs = plt.subplots(nrows=3, ncols=1, figsize=(9, 9), dpi=200)
-        fig.suptitle('Absolute Translation', fontsize=20)
 
-        axs[0].set_title('x-axis [m]', {'fontsize':16,'fontweight':2})
-        axs[0].plot(time, gt.cpu().numpy()[:, 0],  'k', linewidth=1, label="GT")
-        axs[0].plot(time, est.cpu().numpy()[:, 0],  'b', linewidth=1, label="est.")
+
+    # def plot_abs_t_error_norm_percent(self, traveled:torch.Tensor, error:torch.Tensor, plot_dir:Path):
+    #     fig, axs = plt.subplots(nrows=1, ncols=1, figsize=(9, 3), dpi=200)
+    #     fig.suptitle('Absolute Translation Errors / Traveled distance', fontsize=14)
+
+    #     axs.plot(traveled, error,  'k', linewidth=1, label="ate/dist")
+    #     axs.legend(loc='best')
+    #     axs.set_xlabel('Distance traveled [m]', fontdict={'fontsize':10,'fontweight':'bold'})
+    #     axs.set_ylabel('Mean position error [%]', fontdict={'fontsize':10,'fontweight':'bold'})
+
+    #     fn = plot_dir / 'abs_t_error_norm_percent.png'
+    #     fig.tight_layout()
+    #     fig.savefig(fn)
+    #     plt.close(fig)
+
+    # def plot_abs_yaw_error_norm_percent(self, traveled:torch.Tensor, error:torch.Tensor, plot_dir:Path):
+    #     fig, axs = plt.subplots(nrows=1, ncols=1, figsize=(9, 3), dpi=200)
+    #     fig.suptitle('Absolute Yaw Errors / Traveled', fontsize=14)
+
+    #     axs.plot(traveled, error,  'k', linewidth=1)
+    #     axs.legend(loc='best')
+    #     axs.set_ylim(0.0, 1.5)
+    #     axs.set_xlabel('Yaw traveled [deg]', fontdict={'fontsize':10,'fontweight':'bold'})
+    #     axs.set_ylabel('Mean yaw error [%]', fontdict={'fontsize':10,'fontweight':'bold'})
+
+    #     fn = plot_dir / 'abs_yaw_error_percent.png'
+    #     fig.tight_layout()
+    #     fig.savefig(fn)
+    #     plt.close(fig)
+
+    def plot_abs_r_error(self, time:torch.Tensor, error:torch.Tensor, plot_dir:Path):
+        fig, axs = plt.subplots(nrows=4, ncols=1, figsize=(9, 6), dpi=200)
+        fig.suptitle('Absolute Rotation Vector Errors', fontsize=14)
+
+        axs[0].set_title('x-axis [deg]', {'fontsize':12,'fontweight':2})
+        axs[0].plot(time, error.cpu().numpy()[:, 0],  'k', linewidth=1, label="x")
         axs[0].legend(loc='best')
 
-        axs[1].set_title('y-axis [m]', {'fontsize':16,'fontweight':2})
-        axs[1].plot(time, gt.cpu().numpy()[:, 1],  'k', linewidth=1, label="GT")
-        axs[1].plot(time, est.cpu().numpy()[:, 1],  'b', linewidth=1, label="est.")
+        axs[1].set_title('y-axis [deg]', {'fontsize':12,'fontweight':2})
+        axs[1].plot(time, error.cpu().numpy()[:, 1],  'k', linewidth=1, label="y")
         axs[1].legend(loc='best')
 
-        axs[2].set_title('z-axis [m]', {'fontsize':16,'fontweight':2})
-        axs[2].plot(time, gt.cpu().numpy()[:, 2],  'k', linewidth=1, label="GT")
-        axs[2].plot(time, est.cpu().numpy()[:, 2],  'b', linewidth=1, label="est.")
+        axs[2].set_title('z-axis [deg]', {'fontsize':12,'fontweight':2})
+        axs[2].plot(time, error.cpu().numpy()[:, 2],  'k', linewidth=1, label="z")
         axs[2].legend(loc='best')
 
-        fn = plot_dir / 'absolute_t_error.png'
-        plt.tight_layout()
+        error_norm = error.norm(dim=1)
+        axs[3].set_title('error norm [deg]', {'fontsize':12,'fontweight':2})
+        axs[3].plot(time, error_norm.cpu().numpy(),  'k', linewidth=1, label="norm")
+        axs[3].legend(loc='best')
+
+        fn = plot_dir / 'abs_r_error.png'
+        fig.tight_layout()
         fig.savefig(fn)
         plt.close(fig)
 
+    def plot_yaw_error_per_meter(self, cache:dict, plot_dir:Path):
+        yaw_error_per_meter = cache['yaw_error_per_meter']
+        yaw_error_per_meter_t = cache['yaw_error_per_meter_t']
 
-    def plot_abs_t_error_norm_percent(self, traveled:torch.Tensor, error:torch.Tensor, plot_dir:Path):
         fig, axs = plt.subplots(nrows=1, ncols=1, figsize=(9, 3), dpi=200)
-        fig.suptitle('Absolute Translation Errors / Traveled distance', fontsize=14)
+        fig.suptitle('Abs yaw error per meter[deg/m]', fontsize=16)
 
-        axs.plot(traveled, error,  'k', linewidth=1, label="ate/dist")
-        axs.legend(loc='best')
-        axs.set_xlabel('Distance traveled [m]', fontdict={'fontsize':10,'fontweight':'bold'})
-        axs.set_ylabel('Mean position error [%]', fontdict={'fontsize':10,'fontweight':'bold'})
-
-        fn = plot_dir / 'abs_t_error_norm_percent.png'
-        plt.tight_layout()
-        fig.savefig(fn)
-        plt.close(fig)
-
-    def plot_abs_yaw_error_norm_percent(self, traveled:torch.Tensor, error:torch.Tensor, plot_dir:Path):
-        fig, axs = plt.subplots(nrows=1, ncols=1, figsize=(9, 3), dpi=200)
-        fig.suptitle('Absolute Yaw Errors / Traveled', fontsize=14)
-
-        axs.plot(traveled, error,  'k', linewidth=1)
-        axs.legend(loc='best')
-        axs.set_ylim(0.0, 1.5)
-        axs.set_xlabel('Yaw traveled [deg]', fontdict={'fontsize':10,'fontweight':'bold'})
-        axs.set_ylabel('Mean yaw error [%]', fontdict={'fontsize':10,'fontweight':'bold'})
-
-        fn = plot_dir / 'abs_yaw_error_percent.png'
-        plt.tight_layout()
-        fig.savefig(fn)
-        plt.close(fig)
-
-
-    def plot_abs_yaw_error_per_meter(self, traveled:torch.Tensor, error:torch.Tensor, plot_dir:Path):
-        fig, axs = plt.subplots(nrows=1, ncols=1, figsize=(9, 3), dpi=200)
-        fig.suptitle('Absolute Yaw Errors / Traveled distance', fontsize=16)
-
-        axs.plot(traveled, error,  'k', linewidth=1, label="yaw error [deg]")
+        axs.plot(yaw_error_per_meter_t, yaw_error_per_meter,  'k', linewidth=1, label="yaw error per meter [deg/m]")
         axs.legend(loc='best')
         axs.set_xlabel('Distance traveled [m]', fontdict={'fontsize':10,'fontweight':'bold'})
         axs.set_ylabel('Mean yaw error [deg/m]', fontdict={'fontsize':10,'fontweight':'bold'})
 
-        fn = plot_dir / 'abs_yaw_error_per_meter.png'
-        plt.tight_layout()
+        fn = plot_dir / 'yaw_error_per_meter_graph.png'
+        fig.tight_layout()
         fig.savefig(fn)
         plt.close(fig)
 
@@ -275,14 +495,18 @@ class TrajectoryAnalyzer:
         axs[2].set_xlabel('Time [sec]', fontdict={'fontweight':'bold'})
 
         fn = plot_dir / 'rel_t_error.png'
-        plt.tight_layout()
+        fig.tight_layout()
         fig.savefig(fn)
         plt.close(fig)
 
 if __name__ == '__main__':
 
-    eval = TrajectoryAnalyzer(root_dir='/data/RESULT/event_se3/desktop/uslam_event_imu/desktop_uslam_event_imu_boxes_6dof',
-                              gt_abs_path='/data/RESULT/event_se3/desktop/uslam_event_imu/desktop_uslam_event_imu_boxes_6dof/stamped_groundtruth.txt')
+    # eval = TrajectoryAnalyzer(root_dir='/data/RESULT/event_se3/desktop/uslam_event_imu/desktop_uslam_event_imu_boxes_6dof',
+    #                           gt_abs_path='/data/RESULT/event_se3/desktop/uslam_event_imu/desktop_uslam_event_imu_boxes_6dof/stamped_groundtruth.txt')
+
+    eval = TrajectoryAnalyzer(single_dir='/data/RESULT/dynamic_6dof',root_dir=None,
+                              gt_abs_path='/data/RESULT/dynamic_6dof/stamped_groundtruth.txt',
+                              use_cache=True)
 
     # def save_interpolated_gt_n_estimate(self, estimate:Trajectory, gt:Trajectory, save_dir:Path):
     #     est_ts = estimate.times.data
