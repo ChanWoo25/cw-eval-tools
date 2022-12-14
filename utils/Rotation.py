@@ -96,6 +96,10 @@ class Rotation:
         if self.cudable:
             self.data = self.data.cuda()
 
+    def clone(self) -> 'Rotation':
+        clone_data = self.data.clone()
+        return Rotation(clone_data, param_type=self.param_type, qtype=self.qtype)
+
     def numpy(self) -> Tuple[np.ndarray, str]:
         if self.data.is_cuda:
             self.data = self.data.cpu()
