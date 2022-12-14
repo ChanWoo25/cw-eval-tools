@@ -40,181 +40,112 @@ class TrajectoryParser:
     def parse_trajectory(cls, estimate:Trajectory, gt:Trajectory, cache_fn:Path) -> None:
         interpolated_est, interpolated_gt = cls.interpolate_data(estimate, gt)
 
+        # Compute on GPU if possible.
         if cls.cudable:
             interpolated_est = interpolated_est.cuda()
             interpolated_gt = interpolated_gt.cuda()
 
+        # Parse basic
         timestamp_sec = interpolated_est[:, 0]
-        timestamp_sec = timestamp_sec - timestamp_sec[0]
-        abs_t_est = interpolated_est[:, 1:4]
-        abs_q_xyzw_est = interpolated_est[:, 4:8]
-        abs_t_gt = interpolated_gt[:, 1:4]
-        abs_q_xyzw_gt = interpolated_gt[:, 4:8]
-        # print("timestamp_sec:", timestamp_sec.shape)
-        # print("abs_t_est:", abs_t_est.shape)
-        # print("abs_q_xyzw_est:", abs_q_xyzw_est.shape)
-        # print("abs_t_gt:", abs_t_gt.shape)
-        # print("abs_q_xyzw_gt:", abs_q_xyzw_gt.shape)
+        timestamp_sec = timestamp_sec - timestamp_sec[0] #cache#
+        abs_t_est = interpolated_est[:, 1:4]             #cache#
+        abs_q_xyzw_est = interpolated_est[:, 4:8]        #cache#
+        abs_t_gt = interpolated_gt[:, 1:4]               #cache#
+        abs_q_xyzw_gt = interpolated_gt[:, 4:8]          #cache#
 
-        # Alignment!
+        # Do SE3 Alignment
         align_R, align_t = TrajectoryAlign.alignSE3(abs_t_est, abs_t_gt)
         if cls.cudable:
             align_R = align_R.cuda()
             align_t = align_t.cuda()
         abs_t_est = torch.matmul(abs_t_est, align_R.transpose(0, 1)) + align_t.expand_as(abs_t_est)
-        # abs_R_est = Rotation(abs_q_xyzw_est, 'quat', 'xyzw').SO3()
-        # abs_R_est = abs_R_est + align_R
-        # abs_R_est = abs_R_est.quat()
-        # abs_q_xyzw_est = abs_R_est.data
 
-        abs_t_error = torch.abs(abs_t_gt - abs_t_est)
-        abs_t_error_norm:torch.Tensor = torch.norm(abs_t_error, dim=1)
-        # print("abs_t_error:", abs_t_error.shape)
-        # print("abs_t_error_norm:", abs_t_error_norm.shape)
+        # Compute absolute translation & rotation error
+        abs_q_xyzw_est = Rotation(abs_q_xyzw_est, param_type='quat', qtype='xyzw')
+        abs_q_xyzw_gt = Rotation(abs_q_xyzw_gt, param_type='quat', qtype='xyzw')
+        abs_R_est = abs_q_xyzw_est.clone().SO3()
+        abs_R_gt = abs_q_xyzw_gt.clone().SO3()
+        abs_r_est = abs_R_est.clone().so3()            #cache#
+        abs_r_gt = abs_R_gt.clone().so3()              #cache#
+        abs_ypr_est = abs_R_est.SO3_to_euler_rzyx()    #cache#
+        abs_ypr_gt = abs_R_gt.SO3_to_euler_rzyx()      #cache#
 
-
-        rel_timestamp_sec = timestamp_sec[:-1]
-        rel_t_est, rel_q_xyzw_est = cls.relative_estimate(interpolated_est)
-        rel_t_gt, rel_q_xyzw_gt = cls.relative_gt(interpolated_gt)
-        # print("rel_timestamp_sec:", rel_timestamp_sec.shape)
-        # print("rel_t_est:", rel_t_est.shape)
-        # print("rel_q_xyzw_est:", rel_q_xyzw_est.shape)
-        # print("rel_t_gt:", rel_t_gt.shape)
-        # print("rel_q_xyzw_gt:", rel_q_xyzw_gt.shape)
-
-        rel_t_error = rel_t_gt - rel_t_est
-        rel_t_error_norm:torch.Tensor = rel_t_error.norm(dim=1)
-        # print("rel_t_error:", rel_t_error.shape)
-        # print("rel_t_error_norm:", rel_t_error_norm.shape)
-
-        rel_R_est = Rotation(rel_q_xyzw_est, param_type='quat', qtype='xyzw').SO3()
-        rel_R_gt = Rotation(rel_q_xyzw_gt, param_type='quat', qtype='xyzw').SO3()
-        rel_R = rel_R_gt - rel_R_est
-        rel_R = rel_R.so3()
-
-        rel_r_error = rel_R.data
-        rel_r_error_norm:torch.Tensor = rel_r_error.norm(dim=1)
-        # print("rel_r_error:", rel_r_error.shape)
-        # print("rel_r_error_norm:", rel_r_error_norm.shape)
-
-        rel_t_norm_gt = rel_t_gt.norm(dim=1)
-        t_traveled_gt = torch.zeros_like(timestamp_sec)
-        traveled = 0.0
-        for i in range(t_traveled_gt.size(0)):
-            t_traveled_gt[i] = traveled
-            assert (t_traveled_gt[i-1] <= t_traveled_gt[i])
-
-            if i == (t_traveled_gt.size(0)-1):
-                break
-            else:
-                traveled += rel_t_norm_gt[i].item()
-        # print("t_traveled_gt:", t_traveled_gt.shape)
-
-        abs_t_error_norm_percent = abs_t_error_norm / t_traveled_gt
-        abs_t_error_norm_percent[0] = 0.0
-        # print("abs_t_error_norm_percent:", abs_t_error_norm_percent.shape)
-        # print('abs_t_error_norm_percent:', abs_t_error_norm_percent[:10])
-
-        R_est = Rotation(abs_q_xyzw_est, param_type='quat', qtype='xyzw').SO3()
-        R_gt = Rotation(abs_q_xyzw_gt, param_type='quat', qtype='xyzw').SO3()
-        abs_ypr_est = R_est.SO3_to_euler_rzyx()
-        abs_ypr_gt = R_gt.SO3_to_euler_rzyx()
-        abs_R_error = R_gt - R_est
-
-        R_est = R_est.so3()
-        R_gt = R_gt.so3()
-        abs_r_est = torch.rad2deg(R_est.data)
-        abs_r_gt = torch.rad2deg(R_gt.data)
-
+        abs_t_error = abs_t_gt - abs_t_est             #cache#
+        abs_R_error = abs_R_gt - abs_R_est
+        abs_r_error = abs_R_error.clone().so3()        #cache#
+        abs_q_xyzw_error = abs_R_error.clone().quat()  #cache#
         abs_ypr_error = abs_ypr_gt - abs_ypr_est
         abs_ypr_error = torch.rad2deg(abs_ypr_error)
-        # print("abs_ypr_error", abs_ypr_error.shape)
+        abs_ypr_error[abs_ypr_error>=180.0] -= 360.0
+        abs_ypr_error[abs_ypr_error<180.0] += 360.0  #cache#
 
-        abs_yaw_error = abs_ypr_error[:, 0]
-        # print("abs_yaw_error", abs_yaw_error.shape)
+        # Compute relative errors
+        rel_t_est = abs_t_est[1:] - abs_t_est[:-1]   #cache#
+        rel_t_gt  = abs_t_gt[1:] - abs_t_gt[:-1]     #cache#
+        rel_t_error = rel_t_gt - rel_t_est           #cache#
+        rel_R_est = bmtm(abs_R_est.data[:-1], abs_R_est.data[1:])
+        rel_R_est = Rotation(rel_R_est, param_type='SO3')
+        rel_R_gt = bmtm(abs_R_gt.data[:-1], abs_R_gt.data[1:])
+        rel_R_gt = Rotation(rel_R_gt, param_type='SO3')
+        rel_R_error = rel_R_gt - rel_R_est
+        rel_yaw_est = abs_ypr_est[1:,0] - abs_ypr_est[:-1,0]
+        rel_yaw_gt  = abs_ypr_gt[1:,0]  - abs_ypr_gt[:-1,0]
 
+        # Compute total translation distance
+        t_traveled_gt = torch.zeros_like(timestamp_sec, dtype=torch.float64)
+        for i in range(rel_t_gt.size(0)):
+            t_traveled_gt[i+1] = t_traveled_gt[i] + torch.norm(rel_t_gt[i])
+
+        # Compute total yaw distance
+        rel_yaw_gt = torch.abs(abs_ypr_gt[1:, 0] - abs_ypr_gt[:-1, 0])
+        rel_yaw_gt = torch.rad2deg(rel_yaw_gt)                                    #cache#
+        rel_yaw_gt[rel_yaw_gt>180.0] = rel_yaw_gt[rel_yaw_gt>180.0] - 360.0
+        yaw_traveled_gt = torch.zeros_like(timestamp_sec, dtype=torch.float64) #cache#
+        for i in range(rel_yaw_gt.size(0)):
+            yaw_traveled_gt[i+1] = yaw_traveled_gt[i] + rel_yaw_gt[i]
+        print("yaw_traveled_gt:", yaw_traveled_gt.shape)
+
+        # Compute yaw error per meter
         yaw_error_per_meter = []
+        yaw_error_per_meter_t = []
         prev_i = 0
         for i in range(t_traveled_gt.size(0)):
             dt = t_traveled_gt[i] - t_traveled_gt[prev_i]
             if dt.item() > 0.1:
                 dyaw_gt = abs_ypr_gt[i, 0] - abs_ypr_gt[prev_i, 0]
                 dyaw_est = abs_ypr_est[i, 0] - abs_ypr_est[prev_i, 0]
-                # print('dyaw_gt: %1.8f'%dyaw_gt)
-                # print('dyaw_est: %1.8f'%dyaw_est)
-                dyaw_error = torch.abs(dyaw_gt - dyaw_est)
-                dyaw_error = torch.rad2deg(dyaw_error)
+                dyaw_error = torch.rad2deg(torch.abs(dyaw_gt - dyaw_est))
+                dyaw_error[dyaw_error>180.0] = dyaw_error[dyaw_error>180.0] - 360.0
+                dyaw_error[dyaw_error<=-180.0] = dyaw_error[dyaw_error<=-180.0] + 360.0
                 dyaw_error_per_meter = dyaw_error / dt
                 yaw_error_per_meter.append(dyaw_error_per_meter.item())
+                yaw_error_per_meter_t.append(t_traveled_gt[i].item())
                 prev_i = i
-            else:
-                continue
+        yaw_error_per_meter = torch.from_numpy(np.array(yaw_error_per_meter, dtype=float))     #cache#
+        yaw_error_per_meter_t = torch.from_numpy(np.array(yaw_error_per_meter_t, dtype=float)) #cache#
 
-        yaw_error_per_meter = torch.from_numpy(np.array(yaw_error_per_meter))
-        # print('yaw_error_per_meter:', yaw_error_per_meter.shape)
-        # print('mean yaw_error_per_meter:', yaw_error_per_meter.mean())
-
-        abs_yaw_error_per_meter = abs_yaw_error[-1] / t_traveled_gt[-1]
-        # print('abs_yaw_error_per_meter:', abs_yaw_error_per_meter.shape)
-        # print('paper mean yaw_error_per_meter: %1.8f'%abs_yaw_error_per_meter.item())
-
-
-        abs_R_error = abs_R_error.so3()
-        abs_r_error = abs_R_error.data
-        abs_r_error_norm = abs_r_error.norm(dim=1)
-        # print("abs_r_error:", abs_r_error.shape)
-        # print("abs_r_error_norm:", abs_r_error_norm.shape)
-
-        dR_gt = Rotation(rel_q_xyzw_gt, param_type='quat', qtype='xyzw').SO3()
-        dyaw = dR_gt.SO3_to_euler_rzyx()[:, 0]
-        # print("dyaw", dyaw.shape)
-
-        yaw_traveled = torch.zeros_like(timestamp_sec)
-        traveled = 0.0
-        for i in range(yaw_traveled.size(0)):
-            yaw_traveled[i] = traveled
-            assert (yaw_traveled[i-1] <= yaw_traveled[i])
-
-            if i == (yaw_traveled.size(0)-1):
-                break
-            else:
-                traveled += abs(dyaw[i].item())
-        yaw_traveled = torch.rad2deg(yaw_traveled)
-        # print("yaw_traveled:", yaw_traveled.shape)
-
-        abs_yaw_error_percent = abs(abs_ypr_error[:, 0]) / yaw_traveled
-        abs_yaw_error_percent[0] = 0.0
-        # print('abs_yaw_error_percent:', abs_yaw_error_percent.shape)
-        # print('abs_yaw_error_percent:', abs_yaw_error_percent[:10])
-
+        # Create dictionary for caching in pickle format
         cache_dict = {}
         cache_dict['timestamp_sec'] = timestamp_sec.cpu()
         cache_dict['abs_t_est'] = abs_t_est.cpu()
+        cache_dict['abs_q_xyzw_est'] = abs_q_xyzw_est.data.cpu()
         cache_dict['abs_t_gt'] = abs_t_gt.cpu()
+        cache_dict['abs_q_xyzw_gt'] = abs_q_xyzw_gt.data.cpu()
+        cache_dict['abs_r_est'] = abs_r_est.data.cpu()
+        cache_dict['abs_r_gt'] = abs_r_gt.data.cpu()
+        cache_dict['abs_ypr_est'] = abs_ypr_est.data.cpu()
+        cache_dict['abs_ypr_gt'] = abs_ypr_gt.data.cpu()
         cache_dict['abs_t_error'] = abs_t_error.cpu()
-        cache_dict['abs_t_error_norm'] = abs_t_error_norm.cpu()
-        cache_dict['abs_t_error_norm_percent'] = abs_t_error_norm_percent.cpu()
-        cache_dict['t_traveled_gt'] = t_traveled_gt.cpu()
-        cache_dict['abs_q_xyzw_est'] = abs_q_xyzw_est.cpu()
-        cache_dict['abs_q_xyzw_gt'] = abs_q_xyzw_gt.cpu()
-        cache_dict['abs_r_est'] = abs_r_est.cpu()
-        cache_dict['abs_r_gt'] = abs_r_gt.cpu()
+        cache_dict['abs_r_error'] = abs_r_error.data.cpu()
+        cache_dict['abs_q_xyzw_error'] = abs_q_xyzw_error.data.cpu()
         cache_dict['abs_ypr_error'] = abs_ypr_error.cpu()
-        cache_dict['abs_yaw_error'] = abs_yaw_error.cpu()
-        cache_dict['yaw_traveled'] = yaw_traveled.cpu()
-        cache_dict['abs_yaw_error_percent'] = abs_yaw_error_percent.cpu()
-        cache_dict['yaw_error_per_meter'] = yaw_error_per_meter.cpu()
-        cache_dict['abs_yaw_error_per_meter'] = abs_yaw_error_per_meter.cpu()
-        cache_dict['rel_timestamp_sec'] = rel_timestamp_sec.cpu()
         cache_dict['rel_t_est'] = rel_t_est.cpu()
-        cache_dict['rel_q_xyzw_est'] = rel_q_xyzw_est.cpu()
         cache_dict['rel_t_gt'] = rel_t_gt.cpu()
-        cache_dict['rel_q_xyzw_gt'] = rel_q_xyzw_gt.cpu()
         cache_dict['rel_t_error'] = rel_t_error.cpu()
-        cache_dict['rel_t_error_norm'] = rel_t_error_norm.cpu()
-        cache_dict['rel_r_error'] = rel_r_error.cpu()
-        cache_dict['rel_r_error_norm'] = rel_r_error_norm.cpu()
-
+        cache_dict['rel_yaw_gt'] = rel_yaw_gt.cpu()
+        cache_dict['yaw_traveled_gt'] = yaw_traveled_gt.cpu()
+        cache_dict['yaw_error_per_meter'] = yaw_error_per_meter.cpu()
+        cache_dict['yaw_error_per_meter_t'] = yaw_error_per_meter_t.cpu()
         torch.save(cache_dict, cache_fn)
 
     @classmethod
