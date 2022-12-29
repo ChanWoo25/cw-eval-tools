@@ -38,7 +38,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='''
     Extracts IMU messages from bagfile.
     ''')
-    parser.add_argument('bag', help='Bagfile')
+    parser.add_argument('bag', type=str, help='Bagfile')
     parser.add_argument('topic', help='Topic')
     parser.add_argument('--msg_type', default='PoseStamped',
                         help='message type')
@@ -47,6 +47,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     out_dir = os.path.dirname(os.path.abspath(args.bag))
+    print(out_dir)
     out_fn = os.path.join(out_dir, args.output)
 
     print('Extract pose from bag '+args.bag+' in topic ' + args.topic)

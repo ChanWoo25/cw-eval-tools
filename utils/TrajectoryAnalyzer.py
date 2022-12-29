@@ -155,7 +155,7 @@ class TrajectoryAnalyzer:
         # abs_q_xyzw_error      # yaw_error_per_meter_t   #
         # abs_ypr_error         # timestamp_sec           #
         ###################################################
-        # self.plot_3d_traj(cache, plot_dir)
+        self.plot_3d_traj(cache, plot_dir)
         self.plot_abs_t(cache, plot_dir)
         self.plot_abs_t_error(cache, plot_dir)
         self.plot_abs_r(cache, plot_dir)
@@ -596,9 +596,14 @@ if __name__ == '__main__':
     # eval = TrajectoryAnalyzer(root_dir='/data/RESULT/event_se3/desktop/uslam_event_imu/desktop_uslam_event_imu_boxes_6dof',
     #                           gt_abs_path='/data/RESULT/event_se3/desktop/uslam_event_imu/desktop_uslam_event_imu_boxes_6dof/stamped_groundtruth.txt')
 
-    eval = TrajectoryAnalyzer(single_dir='/data/RESULT/dynamic_6dof',root_dir=None,
-                              gt_abs_path='/data/RESULT/dynamic_6dof/stamped_groundtruth.txt',
-                              start=None, end=None, use_cache=False)
+    # eval = TrajectoryAnalyzer(single_dir='/data/RESULT/dynamic_6dof',root_dir=None,
+    #                           gt_abs_path='/data/RESULT/dynamic_6dof/stamped_groundtruth.txt',
+    #                           start=None, end=None, use_cache=False)
+
+    eval = TrajectoryAnalyzer(single_dir='/data/RESULT/mvsec_test',root_dir=None,
+                              gt_abs_path='/data/RESULT/mvsec_test/stamped_groundtruth.txt',
+                              start=0.0, end=25.0, use_cache=False)
+
 
     # def save_interpolated_gt_n_estimate(self, estimate:Trajectory, gt:Trajectory, save_dir:Path):
     #     est_ts = estimate.times.data
