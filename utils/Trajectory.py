@@ -74,11 +74,12 @@ class Trajectory:
             print('Clip trajectory data from %.4f to %.4f, size %d to %d'%(start, end, beforeN, afterN))
 
         self.N = data.shape[0]
-        self.times:Time = Time(data=data[:, 0], unit='s')
+        self.times:Time = Time(data=data[:, 0])
         self.poses:Pose = Pose(t_data=data[:, 1:4],
                                 R_data=data[:, 4:8],
                                 R_type='quat',
                                 R_qtype='xyzw')
+        self.data = data
 
     def numpy(self, out_Rtype:str) -> Tuple[np.ndarray, np.ndarray, str]:
         t = self.poses.t_data

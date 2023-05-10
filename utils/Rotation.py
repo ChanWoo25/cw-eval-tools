@@ -436,7 +436,7 @@ class Rotation:
     def normalize(self):
         assert (self.param_type in ['quat', 'SO3']), 'Normalization is valid for quat and SO3 type only'
 
-        if self.param_type is 'SO3':
+        if self.param_type == 'SO3':
             if self.single:
                 pass
             else:
@@ -446,7 +446,7 @@ class Rotation:
                 S[:, 2, 2] = torch.det(U) * torch.det(V)
                 self.data = U.bmm(S).bmm(V.transpose(1, 2))
                 return self
-        elif self.param_type is 'quat':
+        elif self.param_type == 'quat':
             if self.single:
                 pass
             else:

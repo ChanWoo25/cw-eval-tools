@@ -22,7 +22,7 @@ class Time:
         - `us`: Micro-seconds
         - `ns`: Nano-seconds
         """
-    def __init__(self, data:torch.Tensor, unit:str) -> None:
+    def __init__(self, data:torch.Tensor, unit:str='s') -> None:
         assert (data.ndim == 1), 'Time stamp must be 1-D vector'
         assert (unit in TIME_UNITS), 'Unvalid time unit'
 

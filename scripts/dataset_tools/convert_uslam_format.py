@@ -11,7 +11,7 @@ def extract(source_fn, out_filename):
     fout.write('# timestamp tx ty tz qx qy qz qw\n')
 
     with open(source_fn, 'rb') as fin:
-        data = np.genfromtxt(fin, delimiter=",", skip_header=1)
+        data = np.genfromtxt(fin, delimiter=",", comments='#')
         for l in data:
             fout.write('%.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f\n' %
                        (l[0]/1e9, l[1], l[2], l[3], l[4], l[5], l[6], l[7]))
@@ -22,7 +22,7 @@ if __name__ == '__main__':
     Extracts pose from a csv file in ASL format to space separated format.
     Quaternion is ordered as [x y z w]
     ''')
-    parser.add_argument('--single_file', type=str, default=None)
+    parser.add_argument('--single-file', type=str, default=None)
     parser.add_argument('--input_dir', default='')
     args = parser.parse_args()
 
