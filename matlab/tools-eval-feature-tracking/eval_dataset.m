@@ -1,7 +1,7 @@
 function eval_dataset(dataset_name, root_dir, force_overwrite)
 %EVAL_DATASET Summary of this function goes here
 %   Detailed explanation goes here
-    save_dir        = sprintf("%s/%s", root_dir, dataset_name);
+    save_dir = sprintf("%s/%s", root_dir, dataset_name);
     if isfolder(save_dir) && not (force_overwrite) 
         i = 2;
         while isfolder(save_dir)
