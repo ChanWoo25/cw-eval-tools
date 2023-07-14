@@ -2,10 +2,13 @@ from pathlib import Path
 import numpy as np
 import torch
 from Rotation import Rotation
-from torch_utils import bmtm
 import matplotlib.pyplot as plt
 
-out_fn = Path('/data/results/event_feature_tracking/case_a/CASE_A_230629/0.csv')
+# out_fn = Path('/data/results/event_feature_tracking/case_a/CASE_A_230629/0.csv')
+# out_fn = Path('/data/results/event_feature_tracking/case_a/E230710/0.csv')
+# out_fn = Path('/data/results/event_feature_tracking/case_a/230712_A/0.csv')
+out_fn = Path('/data/results/event_feature_tracking/case_a/230714_mx_0/0.csv')
+out_dir = out_fn.parent
 out = np.genfromtxt(out_fn, delimiter=',')
 print("out.shape: ", out.shape)
 
@@ -189,11 +192,18 @@ for ref in range(0, 1):
     axs[2].set_title('Error [px]', {'fontsize':8,'fontweight':2})
     axs[2].plot(gt_ts, errors,  'k', linewidth=1, label="GT")
     axs[2].legend(loc='best')
-    fn = 'reprojection_error.png'
-    fig.tight_layout()
-    fig.savefig(fn)
-    plt.show()
-    plt.close(fig)
+
+    if out_dir.is_dir():
+        fn = out_dir / 'reprojection_error.png'
+        fig.tight_layout()
+        fig.savefig(fn)
+        # plt.show()
+        # plt.close(fig)
+    else:
+        fig.tight_layout()
+        plt.show()
+        plt.close(fig)
+
 
     ## 3D Plot
     # out_XS = np.array(out_XS, dtype=float)
@@ -213,8 +223,8 @@ for ref in range(0, 1):
     # axs[2].plot(gt_ts ,gt_ZS, 'k', linewidth=1, label="GT")
     # axs[2].plot(gt_ts, out_ZS,  'b', linewidth=1, label="est.")
     # axs[2].legend(loc='best')
-    fig.tight_layout()
-    plt.show()
+    # fig.tight_layout()
+    # plt.show()
 
 
 
