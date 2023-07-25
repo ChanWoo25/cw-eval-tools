@@ -37,8 +37,13 @@ class TrajectoryParser:
     ]
 
     @classmethod
-    def parse_trajectory(cls, estimate:Trajectory, gt:Trajectory, cache_fn:Path) -> None:
+    def parse_trajectory(cls, estimate:Trajectory, gt:Trajectory, cache_fn:Path, save_dir:Path=None, do_align=True) -> None:
         interpolated_est, interpolated_gt = cls.interpolate_data(estimate, gt)
+
+        if save_dir is not None:
+            interpolated_gt_fn = save_dir / 'interpolated_groundtruth.txt'
+            header = '# t[sec] x y z qx qy qz qw'
+            np.savetxt(interpolated_gt_fn, interpolated_gt.cpu().numpy(), delimiter=' ', header=header)
 
         # Compute on GPU if possible.
         if cls.cudable:
@@ -88,8 +93,152 @@ class TrajectoryParser:
         rel_R_gt = bmtm(abs_R_gt.data[:-1], abs_R_gt.data[1:])
         rel_R_gt = Rotation(rel_R_gt, param_type='SO3')
         rel_R_error = rel_R_gt - rel_R_est
+
+        rel_r_est = rel_R_est.clone().so3()
+        rel_q_xyzw_est = rel_R_est.clone().quat()
+        rel_ypr_est = rel_R_est.clone().SO3_to_euler_rzyx()
+        rel_r_gt = rel_R_gt.clone().so3()
+        rel_q_xyzw_gt = rel_R_gt.clone().quat()
+        rel_ypr_gt = rel_R_gt.clone().SO3_to_euler_rzyx()
+
+        rel_r_error = rel_R_error.clone().so3()
+        rel_q_xyzw_error = rel_R_error.clone().quat()
+        rel_ypr_error = rel_R_error.clone().SO3_to_euler_rzyx()
+
         rel_yaw_est = abs_ypr_est[1:,0] - abs_ypr_est[:-1,0]
         rel_yaw_gt  = abs_ypr_gt[1:,0]  - abs_ypr_gt[:-1,0]
+
+        if save_dir is not None:
+            estimate_abs_translation_fn     = save_dir / 'estimate_abs_translation.txt'
+            estimate_abs_quat_xyzw_fn       = save_dir / 'estimate_abs_quat_xyzw.txt'
+            estimate_abs_ypr_fn             = save_dir / 'estimate_abs_ypr.txt'
+            estimate_abs_rvec_fn            = save_dir / 'estimate_abs_rvec.txt'
+            groundtruth_abs_translation_fn  = save_dir / 'interpolated_groundtruth_abs_translation.txt'
+            groundtruth_abs_quat_xyzw_fn    = save_dir / 'interpolated_groundtruth_abs_quat_xyzw.txt'
+            groundtruth_abs_ypr_fn          = save_dir / 'interpolated_groundtruth_abs_ypr.txt'
+            groundtruth_abs_rvec_fn         = save_dir / 'interpolated_groundtruth_abs_rvec.txt'
+            abs_translation_errors_fn       = save_dir / 'abs_translation_errors.txt'
+            abs_quat_xyzw_errors_fn         = save_dir / 'abs_quat_xyzw_errors.txt'
+            abs_ypr_errors_fn               = save_dir / 'abs_ypr_errors.txt'
+            abs_rvec_errors_fn              = save_dir / 'abs_rvec_errors.txt'
+
+            estimate_rel_translation_fn     = save_dir / 'estimate_rel_translation.txt'
+            estimate_rel_quat_xyzw_fn       = save_dir / 'estimate_rel_quat_xyzw.txt'
+            estimate_rel_ypr_fn             = save_dir / 'estimate_rel_ypr.txt'
+            estimate_rel_rvec_fn            = save_dir / 'estimate_rel_rvec.txt'
+            groundtruth_rel_translation_fn  = save_dir / 'interpolated_groundtruth_rel_translation.txt'
+            groundtruth_rel_quat_xyzw_fn    = save_dir / 'interpolated_groundtruth_rel_quat_xyzw.txt'
+            groundtruth_rel_ypr_fn          = save_dir / 'interpolated_groundtruth_rel_ypr.txt'
+            groundtruth_rel_rvec_fn         = save_dir / 'interpolated_groundtruth_rel_rvec.txt'
+            rel_translation_errors_fn       = save_dir / 'rel_translation_errors.txt'
+            rel_quat_xyzw_errors_fn         = save_dir / 'rel_quat_xyzw_errors.txt'
+            rel_ypr_errors_fn               = save_dir / 'rel_ypr_errors.txt'
+            rel_rvec_errors_fn              = save_dir / 'rel_rvec_errors.txt'
+
+            if do_align:
+                estimate_rel_translation_fn     = save_dir / 'aligned_estimate_rel_translation.txt'
+                estimate_rel_quat_xyzw_fn       = save_dir / 'aligned_estimate_rel_quat_xyzw.txt'
+                estimate_rel_ypr_fn             = save_dir / 'aligned_estimate_rel_ypr.txt'
+                estimate_rel_rvec_fn            = save_dir / 'aligned_estimate_rel_rvec.txt'
+                rel_translation_errors_fn       = save_dir / 'aligned_rel_translation_errors.txt'
+                rel_quat_xyzw_errors_fn         = save_dir / 'aligned_rel_quat_xyzw_errors.txt'
+                rel_ypr_errors_fn               = save_dir / 'aligned_rel_ypr_errors.txt'
+                rel_rvec_errors_fn              = save_dir / 'aligned_rel_rvec_errors.txt'
+
+                estimate_abs_translation_fn     = save_dir / 'aligned_estimate_abs_translation.txt'
+                estimate_abs_quat_xyzw_fn       = save_dir / 'aligned_estimate_abs_quat_xyzw.txt'
+                estimate_abs_ypr_fn             = save_dir / 'aligned_estimate_abs_ypr.txt'
+                estimate_abs_rvec_fn            = save_dir / 'aligned_estimate_abs_rvec.txt'
+                abs_translation_errors_fn       = save_dir / 'aligned_abs_translation_errors.txt'
+                abs_quat_xyzw_errors_fn         = save_dir / 'aligned_abs_quat_xyzw_errors.txt'
+                abs_ypr_errors_fn               = save_dir / 'aligned_abs_ypr_errors.txt'
+                abs_rvec_errors_fn              = save_dir / 'aligned_abs_rvec_errors.txt'
+
+            header_tran = '# t[sec] px[m] py[m] pz[m]'
+            header_rvec = '# t[sec] rx[deg] ry[deg] rz[deg]'
+            header_ypr = '# t[sec] yaw[deg] pitch[deg] roll[deg]'
+            header_quat = '# t[sec] qx qy qz qw'
+
+            estimate_abs_translation_fn     = save_dir / 'estimate_abs_translation.txt'
+            estimate_abs_quat_xyzw_fn       = save_dir / 'estimate_abs_quat_xyzw.txt'
+            estimate_abs_ypr_fn             = save_dir / 'estimate_abs_ypr.txt'
+            estimate_abs_rvec_fn            = save_dir / 'estimate_abs_rvec.txt'
+            groundtruth_abs_translation_fn  = save_dir / 'interpolated_groundtruth_abs_translation.txt'
+            groundtruth_abs_quat_xyzw_fn    = save_dir / 'interpolated_groundtruth_abs_quat_xyzw.txt'
+            groundtruth_abs_ypr_fn          = save_dir / 'interpolated_groundtruth_abs_ypr.txt'
+            groundtruth_abs_rvec_fn         = save_dir / 'interpolated_groundtruth_abs_rvec.txt'
+            abs_translation_errors_fn       = save_dir / 'abs_translation_errors.txt'
+            abs_quat_xyzw_errors_fn         = save_dir / 'abs_quat_xyzw_errors.txt'
+            abs_ypr_errors_fn               = save_dir / 'abs_ypr_errors.txt'
+            abs_rvec_errors_fn              = save_dir / 'abs_rvec_errors.txt'
+
+            estimate_rel_translation_fn     = save_dir / 'estimate_rel_translation.txt'
+            estimate_rel_quat_xyzw_fn       = save_dir / 'estimate_rel_quat_xyzw.txt'
+            estimate_rel_ypr_fn             = save_dir / 'estimate_rel_ypr.txt'
+            estimate_rel_rvec_fn            = save_dir / 'estimate_rel_rvec.txt'
+            groundtruth_rel_translation_fn  = save_dir / 'interpolated_groundtruth_rel_translation.txt'
+            groundtruth_rel_quat_xyzw_fn    = save_dir / 'interpolated_groundtruth_rel_quat_xyzw.txt'
+            groundtruth_rel_ypr_fn          = save_dir / 'interpolated_groundtruth_rel_ypr.txt'
+            groundtruth_rel_rvec_fn         = save_dir / 'interpolated_groundtruth_rel_rvec.txt'
+            rel_translation_errors_fn       = save_dir / 'rel_translation_errors.txt'
+            rel_quat_xyzw_errors_fn         = save_dir / 'rel_quat_xyzw_errors.txt'
+            rel_ypr_errors_fn               = save_dir / 'rel_ypr_errors.txt'
+            rel_rvec_errors_fn              = save_dir / 'rel_rvec_errors.txt'
+
+            # print(interpolated_est[:, 0].shape)
+            # print(abs_t_est.shape)
+            estimate_abs_translation        = torch.cat((interpolated_est[:, 0].unsqueeze(1), abs_t_est), dim=1).cpu().numpy()
+            estimate_abs_quat_xyzw          = torch.cat((interpolated_est[:, 0].unsqueeze(1), abs_q_xyzw_est.data), dim=1).cpu().numpy()
+            estimate_abs_ypr                = torch.cat((interpolated_est[:, 0].unsqueeze(1), abs_ypr_est.data), dim=1).cpu().numpy()
+            estimate_abs_rvec               = torch.cat((interpolated_est[:, 0].unsqueeze(1), abs_r_est.data), dim=1).cpu().numpy()
+            groundtruth_abs_translation     = torch.cat((interpolated_est[:, 0].unsqueeze(1), abs_t_gt), dim=1).cpu().numpy()
+            groundtruth_abs_quat_xyzw       = torch.cat((interpolated_est[:, 0].unsqueeze(1), abs_q_xyzw_gt.data), dim=1).cpu().numpy()
+            groundtruth_abs_ypr             = torch.cat((interpolated_est[:, 0].unsqueeze(1), abs_ypr_gt.data), dim=1).cpu().numpy()
+            groundtruth_abs_rvec            = torch.cat((interpolated_est[:, 0].unsqueeze(1), abs_r_gt.data), dim=1).cpu().numpy()
+            abs_translation_errors          = torch.cat((interpolated_est[:, 0].unsqueeze(1), abs_t_error), dim=1).cpu().numpy()
+            abs_quat_xyzw_errors            = torch.cat((interpolated_est[:, 0].unsqueeze(1), abs_q_xyzw_error.data), dim=1).cpu().numpy()
+            abs_ypr_errors                  = torch.cat((interpolated_est[:, 0].unsqueeze(1), abs_ypr_error.data), dim=1).cpu().numpy()
+            abs_rvec_errors                 = torch.cat((interpolated_est[:, 0].unsqueeze(1), abs_r_error.data), dim=1).cpu().numpy()
+
+            estimate_rel_translation        = torch.cat((interpolated_est[:-1, 0].unsqueeze(1), rel_t_est), dim=1).cpu().numpy()
+            estimate_rel_quat_xyzw          = torch.cat((interpolated_est[:-1, 0].unsqueeze(1), rel_q_xyzw_est.data), dim=1).cpu().numpy()
+            estimate_rel_ypr                = torch.cat((interpolated_est[:-1, 0].unsqueeze(1), rel_ypr_est.data), dim=1).cpu().numpy()
+            estimate_rel_rvec               = torch.cat((interpolated_est[:-1, 0].unsqueeze(1), rel_r_est.data), dim=1).cpu().numpy()
+            groundtruth_rel_translation     = torch.cat((interpolated_est[:-1, 0].unsqueeze(1), rel_t_gt), dim=1).cpu().numpy()
+            groundtruth_rel_quat_xyzw       = torch.cat((interpolated_est[:-1, 0].unsqueeze(1), rel_q_xyzw_gt.data), dim=1).cpu().numpy()
+            groundtruth_rel_ypr             = torch.cat((interpolated_est[:-1, 0].unsqueeze(1), rel_ypr_gt.data), dim=1).cpu().numpy()
+            groundtruth_rel_rvec            = torch.cat((interpolated_est[:-1, 0].unsqueeze(1), rel_r_gt.data), dim=1).cpu().numpy()
+            rel_translation_errors          = torch.cat((interpolated_est[:-1, 0].unsqueeze(1), rel_t_error), dim=1).cpu().numpy()
+            rel_quat_xyzw_errors            = torch.cat((interpolated_est[:-1, 0].unsqueeze(1), rel_q_xyzw_error.data), dim=1).cpu().numpy()
+            rel_ypr_errors                  = torch.cat((interpolated_est[:-1, 0].unsqueeze(1), rel_ypr_error.data), dim=1).cpu().numpy()
+            rel_rvec_errors                 = torch.cat((interpolated_est[:-1, 0].unsqueeze(1), rel_r_error.data), dim=1).cpu().numpy()
+
+            np.savetxt(estimate_abs_translation_fn, estimate_abs_translation,       delimiter=' ', header=header_tran)
+            np.savetxt(estimate_abs_quat_xyzw_fn, estimate_abs_quat_xyzw,           delimiter=' ', header=header_quat)
+            np.savetxt(estimate_abs_ypr_fn, estimate_abs_ypr,                       delimiter=' ', header=header_ypr)
+            np.savetxt(estimate_abs_rvec_fn, estimate_abs_rvec,                     delimiter=' ', header=header_rvec)
+            np.savetxt(groundtruth_abs_translation_fn, groundtruth_abs_translation, delimiter=' ', header=header_tran)
+            np.savetxt(groundtruth_abs_quat_xyzw_fn, groundtruth_abs_quat_xyzw,     delimiter=' ', header=header_quat)
+            np.savetxt(groundtruth_abs_ypr_fn, groundtruth_abs_ypr,                 delimiter=' ', header=header_ypr)
+            np.savetxt(groundtruth_abs_rvec_fn, groundtruth_abs_rvec,               delimiter=' ', header=header_rvec)
+            np.savetxt(abs_translation_errors_fn, abs_translation_errors,           delimiter=' ', header=header_tran)
+            np.savetxt(abs_quat_xyzw_errors_fn, abs_quat_xyzw_errors,               delimiter=' ', header=header_quat)
+            np.savetxt(abs_ypr_errors_fn, abs_ypr_errors,                           delimiter=' ', header=header_ypr)
+            np.savetxt(abs_rvec_errors_fn, abs_rvec_errors,                         delimiter=' ', header=header_rvec)
+
+            np.savetxt(estimate_rel_translation_fn, estimate_rel_translation,       delimiter=' ', header=header_tran)
+            np.savetxt(estimate_rel_quat_xyzw_fn, estimate_rel_quat_xyzw,           delimiter=' ', header=header_quat)
+            np.savetxt(estimate_rel_ypr_fn, estimate_rel_ypr,                       delimiter=' ', header=header_ypr)
+            np.savetxt(estimate_rel_rvec_fn, estimate_rel_rvec,                     delimiter=' ', header=header_rvec)
+            np.savetxt(groundtruth_rel_translation_fn, groundtruth_rel_translation, delimiter=' ', header=header_tran)
+            np.savetxt(groundtruth_rel_quat_xyzw_fn, groundtruth_rel_quat_xyzw,     delimiter=' ', header=header_quat)
+            np.savetxt(groundtruth_rel_ypr_fn, groundtruth_rel_ypr,                 delimiter=' ', header=header_ypr)
+            np.savetxt(groundtruth_rel_rvec_fn, groundtruth_rel_rvec,               delimiter=' ', header=header_rvec)
+            np.savetxt(rel_translation_errors_fn, rel_translation_errors,           delimiter=' ', header=header_tran)
+            np.savetxt(rel_quat_xyzw_errors_fn, rel_quat_xyzw_errors,               delimiter=' ', header=header_quat)
+            np.savetxt(rel_ypr_errors_fn, rel_ypr_errors,                           delimiter=' ', header=header_ypr)
+            np.savetxt(rel_rvec_errors_fn, rel_rvec_errors,                         delimiter=' ', header=header_rvec)
+
 
         # Compute total translation distance
         t_traveled_gt = torch.zeros_like(timestamp_sec, dtype=torch.float64) #cache#

@@ -33,7 +33,8 @@ class TrajectoryAnalyzer:
     """
 
     def __init__(self, single_dir:str=None, root_dir:str=None, gt_abs_path:str=None,
-                 start:float=None, end:float=None, estimate_dir_prefix:str='event_imu_', use_cache=False):
+                 start:float=None, end:float=None, estimate_dir_prefix:str='event_imu_',
+                 use_cache=False, do_align=True):
         assert (gt_abs_path is not None and os.path.exists(gt_abs_path)), Fore.RED+'You need to specify an absolute path for proper GT file'
 
         self.gt_abs_path = Path(gt_abs_path)
@@ -54,18 +55,21 @@ class TrajectoryAnalyzer:
                 raise AssertionError(Fore.RED+'%s doesn\'t exists!'%estimate_path.name)
 
             if not cache_path.exists() or not use_cache:
+                print(Fore.GREEN+Style.DIM+'[info] -- not load from cache')
                 estimate = Trajectory(use_file=True, trajectory_file_abs_path=estimate_path, start=start, end=end)
-                TrajectoryParser.parse_trajectory(estimate, self.gt, cache_path)
+                TrajectoryParser.parse_trajectory(
+                    estimate, self.gt,
+                    cache_path, do_align=do_align, save_dir=estimate_path.parent)
             else:
-                print(Fore.GREEN+Style.DIM+'[info] -- %s file exists in %s' % (cache_path.name, single_dir.name))
+                print(Fore.GREEN+Style.DIM+'[info] -- load from %s file exists in %s' % (cache_path.name, single_dir.name))
 
             cache:dict = torch.load(cache_path)
 
             if not plot_dir.exists():
                 os.mkdir(plot_dir)
 
-            self.plot_all(cache, plot_dir)
-            self.dump(cache, plot_dir)
+            # self.plot_all(cache, plot_dir)
+            # self.dump(cache, plot_dir)
             exit(0)
 
         self.root_dir = Path(root_dir)
@@ -89,7 +93,9 @@ class TrajectoryAnalyzer:
 
             if not cache_path.exists() or not use_cache:
                 estimate = Trajectory(use_file=True, trajectory_file_abs_path=estimate_path)
-                TrajectoryParser.parse_trajectory(estimate, self.gt, cache_path)
+                TrajectoryParser.parse_trajectory(
+                    estimate, self.gt,
+                    cache_fn=cache_path, save_dir=estimate_path.parent)
             else:
                 print(Fore.GREEN+Style.DIM+'[info] -- %s file exists in %s' % (cache_path.name, dir.name))
 
@@ -600,9 +606,17 @@ if __name__ == '__main__':
     #                           gt_abs_path='/data/RESULT/dynamic_6dof/stamped_groundtruth.txt',
     #                           start=None, end=None, use_cache=False)
 
-    eval = TrajectoryAnalyzer(single_dir='/data/RESULT/mvsec_test',root_dir=None,
-                              gt_abs_path='/data/RESULT/mvsec_test/stamped_groundtruth.txt',
-                              start=0.0, end=25.0, use_cache=False)
+    # eval = TrajectoryAnalyzer(single_dir='/data/RESULT/mvsec_test',root_dir=None,
+    #                           gt_abs_path='/data/RESULT/mvsec_test/stamped_groundtruth.txt',
+    #                           start=0.0, end=25.0, use_cache=False)
+
+
+    eval = TrajectoryAnalyzer( single_dir='/data/results/lvi_slam/indoor10',root_dir=None,
+                              gt_abs_path='/data/results/lvi_slam/indoor10/groundtruth.txt',
+                              start=0.0, end=999999999999999999.0, use_cache=False, do_align=True)
+    eval = TrajectoryAnalyzer( single_dir='/data/results/lvi_slam/indoor10',root_dir=None,
+                              gt_abs_path='/data/results/lvi_slam/indoor10/groundtruth.txt',
+                              start=0.0, end=999999999999999999.0, use_cache=False, do_align=False)
 
 
     # def save_interpolated_gt_n_estimate(self, estimate:Trajectory, gt:Trajectory, save_dir:Path):
