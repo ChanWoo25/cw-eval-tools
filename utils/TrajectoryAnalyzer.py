@@ -68,8 +68,8 @@ class TrajectoryAnalyzer:
             if not plot_dir.exists():
                 os.mkdir(plot_dir)
 
-            # self.plot_all(cache, plot_dir)
-            # self.dump(cache, plot_dir)
+            self.plot_all(cache, plot_dir)
+            self.dump(cache, plot_dir)
             exit(0)
 
         self.root_dir = Path(root_dir)
@@ -611,12 +611,15 @@ if __name__ == '__main__':
     #                           start=0.0, end=25.0, use_cache=False)
 
 
-    eval = TrajectoryAnalyzer( single_dir='/data/results/lvi_slam/indoor10',root_dir=None,
-                              gt_abs_path='/data/results/lvi_slam/indoor10/groundtruth.txt',
+    # eval = TrajectoryAnalyzer( single_dir='/data/results/lvi_slam/indoor10',root_dir=None,
+    #                           gt_abs_path='/data/results/lvi_slam/indoor10/groundtruth.txt',
+    #                           start=0.0, end=999999999999999999.0, use_cache=False, do_align=True)
+    # eval = TrajectoryAnalyzer( single_dir='/data/results/lvi_slam/indoor10',root_dir=None,
+    #                           gt_abs_path='/data/results/lvi_slam/indoor10/groundtruth.txt',
+    #                           start=0.0, end=999999999999999999.0, use_cache=False, do_align=True)
+    eval = TrajectoryAnalyzer( single_dir='/data/results/lvi_slam/indoor09',root_dir=None,
+                              gt_abs_path='/data/results/lvi_slam/indoor09/groundtruth.txt',
                               start=0.0, end=999999999999999999.0, use_cache=False, do_align=True)
-    eval = TrajectoryAnalyzer( single_dir='/data/results/lvi_slam/indoor10',root_dir=None,
-                              gt_abs_path='/data/results/lvi_slam/indoor10/groundtruth.txt',
-                              start=0.0, end=999999999999999999.0, use_cache=False, do_align=False)
 
 
     # def save_interpolated_gt_n_estimate(self, estimate:Trajectory, gt:Trajectory, save_dir:Path):

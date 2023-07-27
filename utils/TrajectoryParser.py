@@ -109,6 +109,9 @@ class TrajectoryParser:
         rel_yaw_gt  = abs_ypr_gt[1:,0]  - abs_ypr_gt[:-1,0]
 
         if save_dir is not None:
+
+            def set_fns():
+                return
             estimate_abs_translation_fn     = save_dir / 'estimate_abs_translation.txt'
             estimate_abs_quat_xyzw_fn       = save_dir / 'estimate_abs_quat_xyzw.txt'
             estimate_abs_ypr_fn             = save_dir / 'estimate_abs_ypr.txt'
@@ -121,7 +124,6 @@ class TrajectoryParser:
             abs_quat_xyzw_errors_fn         = save_dir / 'abs_quat_xyzw_errors.txt'
             abs_ypr_errors_fn               = save_dir / 'abs_ypr_errors.txt'
             abs_rvec_errors_fn              = save_dir / 'abs_rvec_errors.txt'
-
             estimate_rel_translation_fn     = save_dir / 'estimate_rel_translation.txt'
             estimate_rel_quat_xyzw_fn       = save_dir / 'estimate_rel_quat_xyzw.txt'
             estimate_rel_ypr_fn             = save_dir / 'estimate_rel_ypr.txt'
@@ -144,7 +146,6 @@ class TrajectoryParser:
                 rel_quat_xyzw_errors_fn         = save_dir / 'aligned_rel_quat_xyzw_errors.txt'
                 rel_ypr_errors_fn               = save_dir / 'aligned_rel_ypr_errors.txt'
                 rel_rvec_errors_fn              = save_dir / 'aligned_rel_rvec_errors.txt'
-
                 estimate_abs_translation_fn     = save_dir / 'aligned_estimate_abs_translation.txt'
                 estimate_abs_quat_xyzw_fn       = save_dir / 'aligned_estimate_abs_quat_xyzw.txt'
                 estimate_abs_ypr_fn             = save_dir / 'aligned_estimate_abs_ypr.txt'
@@ -153,37 +154,52 @@ class TrajectoryParser:
                 abs_quat_xyzw_errors_fn         = save_dir / 'aligned_abs_quat_xyzw_errors.txt'
                 abs_ypr_errors_fn               = save_dir / 'aligned_abs_ypr_errors.txt'
                 abs_rvec_errors_fn              = save_dir / 'aligned_abs_rvec_errors.txt'
+                print(estimate_rel_translation_fn)
+                print(estimate_rel_quat_xyzw_fn)
+                print(estimate_rel_ypr_fn)
+                print(estimate_rel_rvec_fn)
+                print(rel_translation_errors_fn)
+                print(rel_quat_xyzw_errors_fn)
+                print(rel_ypr_errors_fn)
+                print(rel_rvec_errors_fn)
+                print(estimate_abs_translation_fn)
+                print(estimate_abs_quat_xyzw_fn)
+                print(estimate_abs_ypr_fn)
+                print(estimate_abs_rvec_fn)
+                print(abs_translation_errors_fn)
+                print(abs_quat_xyzw_errors_fn)
+                print(abs_ypr_errors_fn)
+                print(abs_rvec_errors_fn)
 
             header_tran = '# t[sec] px[m] py[m] pz[m]'
             header_rvec = '# t[sec] rx[deg] ry[deg] rz[deg]'
             header_ypr = '# t[sec] yaw[deg] pitch[deg] roll[deg]'
             header_quat = '# t[sec] qx qy qz qw'
 
-            estimate_abs_translation_fn     = save_dir / 'estimate_abs_translation.txt'
-            estimate_abs_quat_xyzw_fn       = save_dir / 'estimate_abs_quat_xyzw.txt'
-            estimate_abs_ypr_fn             = save_dir / 'estimate_abs_ypr.txt'
-            estimate_abs_rvec_fn            = save_dir / 'estimate_abs_rvec.txt'
-            groundtruth_abs_translation_fn  = save_dir / 'interpolated_groundtruth_abs_translation.txt'
-            groundtruth_abs_quat_xyzw_fn    = save_dir / 'interpolated_groundtruth_abs_quat_xyzw.txt'
-            groundtruth_abs_ypr_fn          = save_dir / 'interpolated_groundtruth_abs_ypr.txt'
-            groundtruth_abs_rvec_fn         = save_dir / 'interpolated_groundtruth_abs_rvec.txt'
-            abs_translation_errors_fn       = save_dir / 'abs_translation_errors.txt'
-            abs_quat_xyzw_errors_fn         = save_dir / 'abs_quat_xyzw_errors.txt'
-            abs_ypr_errors_fn               = save_dir / 'abs_ypr_errors.txt'
-            abs_rvec_errors_fn              = save_dir / 'abs_rvec_errors.txt'
-
-            estimate_rel_translation_fn     = save_dir / 'estimate_rel_translation.txt'
-            estimate_rel_quat_xyzw_fn       = save_dir / 'estimate_rel_quat_xyzw.txt'
-            estimate_rel_ypr_fn             = save_dir / 'estimate_rel_ypr.txt'
-            estimate_rel_rvec_fn            = save_dir / 'estimate_rel_rvec.txt'
-            groundtruth_rel_translation_fn  = save_dir / 'interpolated_groundtruth_rel_translation.txt'
-            groundtruth_rel_quat_xyzw_fn    = save_dir / 'interpolated_groundtruth_rel_quat_xyzw.txt'
-            groundtruth_rel_ypr_fn          = save_dir / 'interpolated_groundtruth_rel_ypr.txt'
-            groundtruth_rel_rvec_fn         = save_dir / 'interpolated_groundtruth_rel_rvec.txt'
-            rel_translation_errors_fn       = save_dir / 'rel_translation_errors.txt'
-            rel_quat_xyzw_errors_fn         = save_dir / 'rel_quat_xyzw_errors.txt'
-            rel_ypr_errors_fn               = save_dir / 'rel_ypr_errors.txt'
-            rel_rvec_errors_fn              = save_dir / 'rel_rvec_errors.txt'
+            # estimate_abs_translation_fn     = save_dir / 'estimate_abs_translation.txt'
+            # estimate_abs_quat_xyzw_fn       = save_dir / 'estimate_abs_quat_xyzw.txt'
+            # estimate_abs_ypr_fn             = save_dir / 'estimate_abs_ypr.txt'
+            # estimate_abs_rvec_fn            = save_dir / 'estimate_abs_rvec.txt'
+            # groundtruth_abs_translation_fn  = save_dir / 'interpolated_groundtruth_abs_translation.txt'
+            # groundtruth_abs_quat_xyzw_fn    = save_dir / 'interpolated_groundtruth_abs_quat_xyzw.txt'
+            # groundtruth_abs_ypr_fn          = save_dir / 'interpolated_groundtruth_abs_ypr.txt'
+            # groundtruth_abs_rvec_fn         = save_dir / 'interpolated_groundtruth_abs_rvec.txt'
+            # abs_translation_errors_fn       = save_dir / 'abs_translation_errors.txt'
+            # abs_quat_xyzw_errors_fn         = save_dir / 'abs_quat_xyzw_errors.txt'
+            # abs_ypr_errors_fn               = save_dir / 'abs_ypr_errors.txt'
+            # abs_rvec_errors_fn              = save_dir / 'abs_rvec_errors.txt'
+            # estimate_rel_translation_fn     = save_dir / 'estimate_rel_translation.txt'
+            # estimate_rel_quat_xyzw_fn       = save_dir / 'estimate_rel_quat_xyzw.txt'
+            # estimate_rel_ypr_fn             = save_dir / 'estimate_rel_ypr.txt'
+            # estimate_rel_rvec_fn            = save_dir / 'estimate_rel_rvec.txt'
+            # groundtruth_rel_translation_fn  = save_dir / 'interpolated_groundtruth_rel_translation.txt'
+            # groundtruth_rel_quat_xyzw_fn    = save_dir / 'interpolated_groundtruth_rel_quat_xyzw.txt'
+            # groundtruth_rel_ypr_fn          = save_dir / 'interpolated_groundtruth_rel_ypr.txt'
+            # groundtruth_rel_rvec_fn         = save_dir / 'interpolated_groundtruth_rel_rvec.txt'
+            # rel_translation_errors_fn       = save_dir / 'rel_translation_errors.txt'
+            # rel_quat_xyzw_errors_fn         = save_dir / 'rel_quat_xyzw_errors.txt'
+            # rel_ypr_errors_fn               = save_dir / 'rel_ypr_errors.txt'
+            # rel_rvec_errors_fn              = save_dir / 'rel_rvec_errors.txt'
 
             # print(interpolated_est[:, 0].shape)
             # print(abs_t_est.shape)
