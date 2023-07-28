@@ -332,32 +332,77 @@ if __name__ == '__main__':
     ##########
     # Case A #
     ##########
+    # gt_fn = Path('/data/test3.csv')
+    # case_A_dict = {
+    #     'checkerboard_rhombus_dt01': ['230717_103644'],
+    #     'checkerboard_rhombus_dt02': ['230717_103610'],
+    #     'checkerboard_rhombus_dt03': ['230717_103731'],
+    #     'checkerboard_rhombus_dt04': ['230717_103830'],
+    #     'checkerboard_rhombus_dt05': ['230717_104034'],
+    #     'checkerboard_rhombus_dt06': ['230717_104118'],
+    #     'checkerboard_rhombus_dt07': ['230717_104224'],
+    #     'checkerboard_rhombus_dt08': ['230717_104835'],
+    #     'checkerboard_rhombus_dt09': ['230717_104920'],
+    #     'checkerboard_rhombus_dt10': ['230717_105157'],
+    # }
+    # for method in ['EFTv0']:
+    #     for dataset, ids in case_A_dict.items():
+    #         gt_fn = '/data/datasets/dataset_ours/dt_%.1f.csv' % (float(dataset[-2:]) / 10.0)
+    #         for id in ids:
+    #             out_fn = Path('/data/results/event_feature_tracking/%s/%s/%s/0.csv' % (dataset, method, id))
+    #             out_vfn = Path('/data/results/event_feature_tracking/%s/%s/%s/0v.csv' % (dataset, method, id))
+    #             png_dir = Path('./results/%s/%s/%s' % (dataset, method, id))
+    #             # print("out_fn: ", out_fn)
+    #             # print("out_vfn: ", out_vfn)
+    #             # print("png_dir: ", png_dir)
+    #             os.makedirs(png_dir, exist_ok=True)
+    #             png_fn = png_dir / 'errors.png'
+    #             mean_, std_, max_ = eval_n_plot(out_fn, gt_fn, png_fn, save_plot=False)
+    #             print("[%s](%s-%s) means:%.4f, std:%.4f, max:%.4f" % (method, dataset, id, mean_, std_, max_))
+    #             means.append(mean_)
+    #             stds.append(std_)
+
+    #######################
+    # esim_case_a: 230728 #
+    #######################
+    # Template 바뀔때마다 새로 만드는 거 어쩌다가 잘나와서 한번
     gt_fn = Path('/data/test3.csv')
-    case_A_dict = {
-        'checkerboard_rhombus_dt01': ['230717_103644'],
-        'checkerboard_rhombus_dt02': ['230717_103610'],
-        'checkerboard_rhombus_dt03': ['230717_103731'],
-        'checkerboard_rhombus_dt04': ['230717_103830'],
-        'checkerboard_rhombus_dt05': ['230717_104034'],
-        'checkerboard_rhombus_dt06': ['230717_104118'],
-        'checkerboard_rhombus_dt07': ['230717_104224'],
-        'checkerboard_rhombus_dt08': ['230717_104835'],
-        'checkerboard_rhombus_dt09': ['230717_104920'],
-        'checkerboard_rhombus_dt10': ['230717_105157'],
-    }
     for method in ['EFTv0']:
-        for dataset, ids in case_A_dict.items():
-            gt_fn = '/data/datasets/dataset_ours/dt_%.1f.csv' % (float(dataset[-2:]) / 10.0)
+        for dataset, ids in {'esim_case_a': ['230728_194222']}.items():
             for id in ids:
-                out_fn = Path('/data/results/event_feature_tracking/%s/%s/%s/0.csv' % (dataset, method, id))
-                out_vfn = Path('/data/results/event_feature_tracking/%s/%s/%s/0v.csv' % (dataset, method, id))
-                png_dir = Path('./results/%s/%s/%s' % (dataset, method, id))
-                # print("out_fn: ", out_fn)
-                # print("out_vfn: ", out_vfn)
-                # print("png_dir: ", png_dir)
+                out_fn = Path('/data/results/event_feature_tracking/%s/%s/%s/traj/32.csv' % (dataset, method, id))
+                png_dir = Path('./results/event_feature_tracking/%s/%s/%s' % (dataset, method, id))
                 os.makedirs(png_dir, exist_ok=True)
                 png_fn = png_dir / 'errors.png'
-                mean_, std_, max_ = eval_n_plot(out_fn, gt_fn, png_fn, save_plot=False)
+                mean_, std_, max_ = eval_n_plot(out_fn, gt_fn, png_fn, True)
                 print("[%s](%s-%s) means:%.4f, std:%.4f, max:%.4f" % (method, dataset, id, mean_, std_, max_))
-                means.append(mean_)
-                stds.append(std_)
+
+    # gt_fn = Path('/data/test3.csv')
+    # case_A_dict = {
+    #     'checkerboard_rhombus_dt01': ['230717_103644'],
+    #     'checkerboard_rhombus_dt02': ['230717_103610'],
+    #     'checkerboard_rhombus_dt03': ['230717_103731'],
+    #     'checkerboard_rhombus_dt04': ['230717_103830'],
+    #     'checkerboard_rhombus_dt05': ['230717_104034'],
+    #     'checkerboard_rhombus_dt06': ['230717_104118'],
+    #     'checkerboard_rhombus_dt07': ['230717_104224'],
+    #     'checkerboard_rhombus_dt08': ['230717_104835'],
+    #     'checkerboard_rhombus_dt09': ['230717_104920'],
+    #     'checkerboard_rhombus_dt10': ['230717_105157'],
+    # }
+    # for method in ['EFTv0']:
+    #     for dataset, ids in case_A_dict.items():
+    #         gt_fn = '/data/datasets/dataset_ours/dt_%.1f.csv' % (float(dataset[-2:]) / 10.0)
+    #         for id in ids:
+    #             out_fn = Path('/data/results/event_feature_tracking/%s/%s/%s/0.csv' % (dataset, method, id))
+    #             out_vfn = Path('/data/results/event_feature_tracking/%s/%s/%s/0v.csv' % (dataset, method, id))
+    #             png_dir = Path('./results/%s/%s/%s' % (dataset, method, id))
+    #             # print("out_fn: ", out_fn)
+    #             # print("out_vfn: ", out_vfn)
+    #             # print("png_dir: ", png_dir)
+    #             os.makedirs(png_dir, exist_ok=True)
+    #             png_fn = png_dir / 'errors.png'
+    #             mean_, std_, max_ = eval_n_plot(out_fn, gt_fn, png_fn, save_plot=False)
+    #             print("[%s](%s-%s) means:%.4f, std:%.4f, max:%.4f" % (method, dataset, id, mean_, std_, max_))
+    #             means.append(mean_)
+    #             stds.append(std_)
