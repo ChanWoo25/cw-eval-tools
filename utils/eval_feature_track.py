@@ -366,18 +366,17 @@ if __name__ == '__main__':
     # esim_case_a: 230728 #
     #######################
     # Template 바뀔때마다 새로 만드는 거 어쩌다가 잘나와서 한번
-    gt_fn = Path('/data/test3.csv')
-    for method in ['EFTv0']:
-        for dataset, ids in {'esim_case_a': ['230728_194222']}.items():
-            for id in ids:
-                out_fn = Path('/data/results/event_feature_tracking/%s/%s/%s/traj/32.csv' % (dataset, method, id))
-                png_dir = Path('./results/event_feature_tracking/%s/%s/%s' % (dataset, method, id))
-                os.makedirs(png_dir, exist_ok=True)
-                png_fn = png_dir / 'errors.png'
-                mean_, std_, max_ = eval_n_plot(out_fn, gt_fn, png_fn, True)
-                print("[%s](%s-%s) means:%.4f, std:%.4f, max:%.4f" % (method, dataset, id, mean_, std_, max_))
-
     # gt_fn = Path('/data/test3.csv')
+    # for method in ['EFTv0']:
+    #     for dataset, ids in {'esim_case_a': ['_230805_144358', '_230808_161735']}.items():
+    #         for id in ids:
+    #             out_fn = Path('/data/results/event_feature_tracking/%s/%s/%s/traj/7.csv' % (dataset, method, id))
+    #             png_dir = Path('./results/event_feature_tracking/%s/%s/%s' % (dataset, method, id))
+    #             os.makedirs(png_dir, exist_ok=True)
+    #             png_fn = png_dir / 'errors.png'
+    #             mean_, std_, max_ = eval_n_plot(out_fn, gt_fn, png_fn, True)
+    #             print("[%s](%s-%s) means:%.4f, std:%.4f, max:%.4f" % (method, dataset, id, mean_, std_, max_))
+
     # case_A_dict = {
     #     'checkerboard_rhombus_dt01': ['230717_103644'],
     #     'checkerboard_rhombus_dt02': ['230717_103610'],
@@ -406,3 +405,36 @@ if __name__ == '__main__':
     #             print("[%s](%s-%s) means:%.4f, std:%.4f, max:%.4f" % (method, dataset, id, mean_, std_, max_))
     #             means.append(mean_)
     #             stds.append(std_)
+
+    #######################
+    # esim_case_a: 230818 #
+    #######################
+    # Template 바뀔때마다 새로 만드는 거 어쩌다가 잘나와서 한번
+    # gt_fn = Path('/data/test3.csv')
+    # for method in ['EFTv0']:
+    #     for dataset, ids in {'esim_case_a': ['_230818_170400_offset_3']}.items():
+    #         for id in ids:
+    #             out_fn = Path('/data/results/event_feature_tracking/%s/%s/%s/traj/7.csv' % (dataset, method, id))
+    #             png_dir = Path('./results/event_feature_tracking/%s/%s/%s' % (dataset, method, id))
+    #             os.makedirs(png_dir, exist_ok=True)
+    #             png_fn = png_dir / 'errors.png'
+    #             mean_, std_, max_ = eval_n_plot(out_fn, gt_fn, png_fn, True)
+    #             print("[%s](%s-%s) means:%.4f, std:%.4f, max:%.4f" % (method, dataset, id, mean_, std_, max_))
+
+    result_dict = {
+        'checkerboard_rhombus_dt02': {'230818_182742': [0]},
+        'checkerboard_rhombus_dt04': {'230818_182828': [15]},
+        'checkerboard_rhombus_dt06': {'230818_182923': [45]},
+        'checkerboard_rhombus_dt08': {'230818_183643': [5]},
+        'checkerboard_rhombus_dt10': {'230818_183746': [30]},
+    }
+    for method in ['EFTv0']:
+        for dataset, ids in result_dict.items():
+            gt_fn = '/data/datasets/dataset_ours/dt_%.1f.csv' % (float(dataset[-2:]) / 10.0)
+            for id, indexes in ids.items():
+                out_fn = Path('/data/results/event_feature_tracking/%s/%s/%s/traj/%d.csv' % (dataset, method, id, indexes[0]))
+                png_dir = Path('./results/event_feature_tracking/%s/%s/%s' % (dataset, method, id))
+                os.makedirs(png_dir, exist_ok=True)
+                png_fn = png_dir / 'errors.png'
+                mean_, std_, max_ = eval_n_plot(out_fn, gt_fn, png_fn, True)
+                print("[%s](%s-%s) means:%.4f, std:%.4f, max:%.4f" % (method, dataset, id, mean_, std_, max_))
