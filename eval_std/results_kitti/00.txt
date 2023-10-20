@@ -1,0 +1,92 @@
+I1020 02:02:59.831223 687523 main_scancontext.cpp:631] Curr[0]-Old[445] Match
+I1020 02:02:59.831240 687523 main_scancontext.cpp:635]
+I1020 02:02:59.831243 687523 main_scancontext.cpp:631] Curr[1]-Old[446] Match
+I1020 02:02:59.831245 687523 main_scancontext.cpp:635]
+I1020 02:02:59.831247 687523 main_scancontext.cpp:631] Curr[2]-Old[447] Match
+I1020 02:02:59.831249 687523 main_scancontext.cpp:635] 
+I1020 02:02:59.831251 687523 main_scancontext.cpp:631] Curr[3]-Old[448] Match
+I1020 02:02:59.831252 687523 main_scancontext.cpp:635]
+I1020 02:02:59.831254 687523 main_scancontext.cpp:631] Curr[4]-Old[449] Match
+I1020 02:02:59.831256 687523 main_scancontext.cpp:635]
+I1020 02:02:59.831259 687523 main_scancontext.cpp:631] Curr[5]-Old[450] Match
+I1020 02:02:59.831260 687523 main_scancontext.cpp:635]
+I1020 02:02:59.831262 687523 main_scancontext.cpp:631] Curr[6]-Old[450] Match
+I1020 02:02:59.831264 687523 main_scancontext.cpp:635]
+I1020 02:02:59.831266 687523 main_scancontext.cpp:631] Curr[7]-Old[451] Match
+I1020 02:02:59.831267 687523 main_scancontext.cpp:635]
+I1020 02:02:59.831270 687523 main_scancontext.cpp:631] Curr[8]-Old[452] Match
+I1020 02:02:59.831272 687523 main_scancontext.cpp:635]
+I1020 02:02:59.831277 687523 main_scancontext.cpp:631] Curr[9]-Old[452] Match
+I1020 02:02:59.831313 687523 main_scancontext.cpp:635]
+I1020 02:02:59.831317 687523 main_scancontext.cpp:635]
+I1020 02:02:59.831321 687523 main_scancontext.cpp:631] Curr[11]-Old[156] Match
+I1020 02:02:59.831323 687523 main_scancontext.cpp:631] Curr[11]-Old[453] Match
+I1020 02:02:59.831326 687523 main_scancontext.cpp:635]
+I1020 02:02:59.831329 687523 main_scancontext.cpp:631] Curr[12]-Old[156] Match
+I1020 02:02:59.831331 687523 main_scancontext.cpp:631] Curr[12]-Old[157] Match
+I1020 02:02:59.831334 687523 main_scancontext.cpp:635]
+I1020 02:02:59.831337 687523 main_scancontext.cpp:631] Curr[13]-Old[157] Match
+I1020 02:02:59.831339 687523 main_scancontext.cpp:631] Curr[13]-Old[158] Match
+I1020 02:02:59.831342 687523 main_scancontext.cpp:635]
+I1020 02:02:59.831346 687523 main_scancontext.cpp:631] Curr[14]-Old[158] Match
+I1020 02:02:59.831349 687523 main_scancontext.cpp:631] Curr[14]-Old[159] Match
+I1020 02:02:59.831353 687523 main_scancontext.cpp:635]
+I1020 02:02:59.831357 687523 main_scancontext.cpp:631] Curr[15]-Old[159] Match
+I1020 02:02:59.831359 687523 main_scancontext.cpp:631] Curr[15]-Old[160] Match
+I1020 02:02:59.831362 687523 main_scancontext.cpp:635]
+I1020 02:02:59.831367 687523 main_scancontext.cpp:631] Curr[16]-Old[160] Match
+I1020 02:02:59.831370 687523 main_scancontext.cpp:635]
+I1020 02:02:59.831372 687523 main_scancontext.cpp:631] Curr[17]-Old[161] Match
+I1020 02:02:59.831377 687523 main_scancontext.cpp:635]
+I1020 02:02:59.831379 687523 main_scancontext.cpp:631] Curr[18]-Old[162] Match
+I1020 02:02:59.831383 687523 main_scancontext.cpp:635]
+I1020 02:02:59.831386 687523 main_scancontext.cpp:631] Curr[19]-Old[163] Match
+I1020 02:02:59.831388 687523 main_scancontext.cpp:635]
+I1020 02:02:59.831390 687523 main_scancontext.cpp:631] Curr[20]-Old[163] Match
+I1020 02:02:59.831393 687523 main_scancontext.cpp:635]
+I1020 02:02:59.831395 687523 main_scancontext.cpp:635]
+I1020 02:02:59.831398 687523 main_scancontext.cpp:635]
+I1020 02:02:59.831401 687523 main_scancontext.cpp:635]
+I1020 02:02:59.831403 687523 main_scancontext.cpp:635]
+I1020 02:02:59.831406 687523 main_scancontext.cpp:635]
+I1020 02:02:59.831408 687523 main_scancontext.cpp:635]
+I1020 02:02:59.831411 687523 main_scancontext.cpp:635]
+I1020 02:02:59.831413 687523 main_scancontext.cpp:635]
+I1020 02:02:59.831416 687523 main_scancontext.cpp:635]
+I1020 02:02:59.831419 687523 main_scancontext.cpp:635]
+I1020 02:02:59.831421 687523 main_scancontext.cpp:635]
+I1020 02:02:59.831424 687523 main_scancontext.cpp:635]
+I1020 02:02:59.831426 687523 main_scancontext.cpp:635]
+I1020 02:02:59.831429 687523 main_scancontext.cpp:635]
+I1020 02:02:59.831431 687523 main_scancontext.cpp:635]
+I1020 02:02:59.831434 687523 main_scancontext.cpp:635]
+I1020 02:02:59.831437 687523 main_scancontext.cpp:635]
+I1020 02:02:59.831439 687523 main_scancontext.cpp:631] Curr[38]-Old[243] Match
+I1020 02:02:59.831441 687523 main_scancontext.cpp:631] Curr[38]-Old[244] Match
+I1020 02:02:59.831444 687523 main_scancontext.cpp:631] Curr[38]-Old[338] Match
+I1020 02:02:59.831445 687523 main_scancontext.cpp:631] Curr[38]-Old[339] Match
+I1020 02:02:59.831447 687523 main_scancontext.cpp:635]
+I1020 02:02:59.831450 687523 main_scancontext.cpp:631] Curr[39]-Old[244] Match
+I1020 02:02:59.831452 687523 main_scancontext.cpp:631] Curr[39]-Old[245] Match
+I1020 02:02:59.831456 687523 main_scancontext.cpp:631] Curr[39]-Old[339] Match
+I1020 02:02:59.831459 687523 main_scancontext.cpp:631] Curr[39]-Old[340] Match
+I1020 02:02:59.831462 687523 main_scancontext.cpp:635]
+I1020 02:02:59.831466 687523 main_scancontext.cpp:631] Curr[40]-Old[245] Match
+I1020 02:02:59.831470 687523 main_scancontext.cpp:631] Curr[40]-Old[340] Match
+I1020 02:02:59.831473 687523 main_scancontext.cpp:631] Curr[40]-Old[341] Match
+I1020 02:02:59.831476 687523 main_scancontext.cpp:635]
+I1020 02:02:59.831480 687523 main_scancontext.cpp:631] Curr[41]-Old[246] Match
+I1020 02:02:59.831483 687523 main_scancontext.cpp:631] Curr[41]-Old[341] Match
+I1020 02:02:59.831486 687523 main_scancontext.cpp:631] Curr[41]-Old[342] Match
+I1020 02:02:59.831502 687523 main_scancontext.cpp:635]
+I1020 02:02:59.831507 687523 main_scancontext.cpp:631] Curr[42]-Old[246] Match
+I1020 02:02:59.831511 687523 main_scancontext.cpp:631] Curr[42]-Old[342] Match
+I1020 02:02:59.831514 687523 main_scancontext.cpp:631] Curr[42]-Old[343] Match
+I1020 02:02:59.831517 687523 main_scancontext.cpp:635]
+I1020 02:02:59.831522 687523 main_scancontext.cpp:631] Curr[43]-Old[343] Match
+I1020 02:02:59.831526 687523 main_scancontext.cpp:631] Curr[43]-Old[344] Match
+I1020 02:02:59.831529 687523 main_scancontext.cpp:635]
+I1020 02:02:59.831533 687523 main_scancontext.cpp:631] Curr[44]-Old[344] Match
+I1020 02:02:59.831537 687523 main_scancontext.cpp:631] Curr[44]-Old[345] Match
+I1020 02:02:59.831540 687523 main_scancontext.cpp:635]
+I1020 02:02:59.831544 687523 main_scancontext.cpp:631] Curr[45]-Old[345] Match
