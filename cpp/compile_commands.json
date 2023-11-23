@@ -1,0 +1,7 @@
+[
+{
+  "directory": "/root/shared/cw-eval-tools/cpp/build",
+  "command": "/usr/bin/clang++ -DSPDLOG_COMPILED_LIB -isystem thirdparty/spdlog/install/Release/include -O3 -DNDEBUG -Wall -Wextra -Wpedantic -Werror -std=c++17 -o CMakeFiles/MAIN.dir/src/main.cpp.o -c /root/shared/cw-eval-tools/cpp/src/main.cpp",
+  "file": "/root/shared/cw-eval-tools/cpp/src/main.cpp"
+}
+]

@@ -1,9 +1,11 @@
 # Build
+build
 build/**
 
 # VSCode
 .idea/**
 .cache/**
+.vscode
 .vscode/**
 .history/**
 .DS_Store
@@ -40,3 +42,6 @@ build/**
 *.exe
 *.out
 *.app
+
+# Clangd
+.clangd

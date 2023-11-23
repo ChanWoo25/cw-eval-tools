@@ -1,0 +1,4 @@
+{
+  "clangd.detectExtensionConflicts": false,
+  "C_Cpp.intelliSenseEngine": "disabled"
+}
