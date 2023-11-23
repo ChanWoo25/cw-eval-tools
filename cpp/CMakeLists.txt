@@ -65,12 +65,16 @@ if (EIGEN3_FOUND)
   message(STATUS "* Tip: Just target_include_directories(example $<EIGEN3_INCLUDE_DIRS> )")
 endif()
 
+find_package(fmt REQUIRED)
+
 include("cmake/find_spdlog.cmake")
+include("cmake/find_pcl.cmake")
 
 add_executable(MAIN src/main.cpp)
 target_link_libraries(MAIN
   glog
   gflags
+  fmt::fmt
   ${SPDLOG_LIBS}
 )
 target_compile_options(MAIN PRIVATE
@@ -78,4 +82,21 @@ target_compile_options(MAIN PRIVATE
 )
 target_include_directories(MAIN PRIVATE
   ${SPDLOG_INCLUDE_PATH}
+)
+
+############################################
+add_executable(parse_point_cloud src/parse_point_cloud.cpp)
+target_link_libraries(parse_point_cloud
+  glog
+  gflags
+  fmt::fmt
+  ${SPDLOG_LIBS}
+  ${PCL_LIBS}
+)
+target_compile_options(MAIN PRIVATE
+  -Wall -Wextra -Wpedantic -Werror
+)
+target_include_directories(MAIN PRIVATE
+  ${SPDLOG_INCLUDE_PATH}
+  ${PCL_INCLUDE_PATH}
 )

@@ -1,7 +1,13 @@
 [
 {
   "directory": "/root/shared/cw-eval-tools/cpp/build",
-  "command": "/usr/bin/clang++ -DSPDLOG_COMPILED_LIB -isystem thirdparty/spdlog/install/Release/include -O3 -DNDEBUG -Wall -Wextra -Wpedantic -Werror -std=c++17 -o CMakeFiles/MAIN.dir/src/main.cpp.o -c /root/shared/cw-eval-tools/cpp/src/main.cpp",
+  "command": "/usr/bin/clang++ -DBOOST_ALL_NO_LIB -DBOOST_FILESYSTEM_DYN_LINK -DBOOST_IOSTREAMS_DYN_LINK -DBOOST_SERIALIZATION_DYN_LINK -DBOOST_SYSTEM_DYN_LINK -DFMT_LOCALE -DQT_CORE_LIB -DQT_GUI_LIB -DQT_NO_DEBUG -DQT_WIDGETS_LIB -DSPDLOG_COMPILED_LIB -Dqh_QHpointer -DvtkRenderingContext2D_AUTOINIT=1(vtkRenderingContextOpenGL2) -DvtkRenderingCore_AUTOINIT=3(vtkInteractionStyle,vtkRenderingFreeType,vtkRenderingOpenGL2) -isystem /usr/include/vtk-7.1 -isystem /usr/include/freetype2 -isystem thirdparty/spdlog/install/Release/include -isystem /usr/include/eigen3 -isystem /usr/local/include/pcl-1.13 -isystem /usr/include/ni -isystem /usr/include/openni2 -isystem /usr/include/x86_64-linux-gnu/qt5 -isystem /usr/include/x86_64-linux-gnu/qt5/QtWidgets -isystem /usr/include/x86_64-linux-gnu/qt5/QtGui -isystem /usr/include/x86_64-linux-gnu/qt5/QtCore -isystem /usr/lib/x86_64-linux-gnu/qt5/mkspecs/linux-g++ -O3 -DNDEBUG -msse4.2 -mfpmath=sse -march=native -mavx2 -fPIC -std=c++17 -o CMakeFiles/parse_point_cloud.dir/src/parse_point_cloud.cpp.o -c /root/shared/cw-eval-tools/cpp/src/parse_point_cloud.cpp",
+  "file": "/root/shared/cw-eval-tools/cpp/src/parse_point_cloud.cpp"
+},
+
+{
+  "directory": "/root/shared/cw-eval-tools/cpp/build",
+  "command": "/usr/bin/clang++ -DFMT_LOCALE -DSPDLOG_COMPILED_LIB -DvtkRenderingContext2D_AUTOINIT=1(vtkRenderingContextOpenGL2) -DvtkRenderingCore_AUTOINIT=3(vtkInteractionStyle,vtkRenderingFreeType,vtkRenderingOpenGL2) -I/usr/include/vtk-7.1 -I/usr/include/freetype2 -I/usr/local/include/pcl-1.13 -I/usr/include/eigen3 -I/usr/include/ni -I/usr/include/openni2 -isystem thirdparty/spdlog/install/Release/include -O3 -DNDEBUG -Wall -Wextra -Wpedantic -Werror -std=c++17 -o CMakeFiles/MAIN.dir/src/main.cpp.o -c /root/shared/cw-eval-tools/cpp/src/main.cpp",
   "file": "/root/shared/cw-eval-tools/cpp/src/main.cpp"
 }
 ]
