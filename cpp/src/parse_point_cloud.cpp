@@ -1,14 +1,17 @@
 // #include <opencv2/opencv.hpp>
 // #include <cv_bridge/cv_bridge.h>
-#include <fmt/format.h>
-#include <fmt/printf.h>
-// #include <Eigen/Dense>
-// #include <Eigen/Geometry>
+
+#include <spdlog/common.h>
+#include <spdlog/spdlog.h>
+
+
+#include <Eigen/Dense>
+#include <Eigen/Geometry>
 // #include <pcl_conversions/pcl_conversions.h>
 #include <pcl/io/pcd_io.h>
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
-#include <pcl/filters/voxel_grid.h>
+// #include <pcl/filters/voxel_grid.h>
 // #include <sensor_msgs/PointCloud2.h>
 // #include <livox_ros_driver2/CustomMsg.h>
 
@@ -19,6 +22,8 @@
 #include <tuple>
 #include <filesystem>
 #include <random>
+
+#include "cwcloud/CloudVisualizer.hpp"
 
 namespace fs = std::filesystem;
 
@@ -368,8 +373,8 @@ void processSequence(
 
   size_t prev_idx {10UL};
   size_t curr_idx {prev_idx};
-  Eigen::Vector3d prev_pos = Eigen::Vector3d::Zero();
-  Eigen::Vector3d curr_pos = Eigen::Vector3d::Zero();
+  // Eigen::Vector3d prev_pos = Eigen::Vector3d::Zero();
+  // Eigen::Vector3d curr_pos = Eigen::Vector3d::Zero();
   for (curr_idx = prev_idx; curr_idx < N_SCAN; ++curr_idx)
   {
     if (prev_idx == curr_idx)
@@ -435,30 +440,33 @@ struct Config
   int target_n_points = 4096;
 } cfg ;
 
-int main(int argc, char * argv[])
+auto main() -> int32_t
 {
-  std::vector<std::string> sequences;
-  sequences.emplace_back("hangpa00");
-  sequences.emplace_back("hangpa01");
-  sequences.emplace_back("hangpa02");
-  sequences.emplace_back("outdoor00");
-  sequences.emplace_back("outdoor01");
-  sequences.emplace_back("outdoor02");
-  sequences.emplace_back("outdoor03");
-  sequences.emplace_back("itbt00");
-  sequences.emplace_back("itbt01");
-  sequences.emplace_back("itbt02");
-  sequences.emplace_back("itbt03");
-  sequences.emplace_back("itbt_dark00");
-  sequences.emplace_back("itbt_dark01");
-  sequences.emplace_back("itbt_dark02");
-  sequences.emplace_back("itbt_dark03");
+  cwcloud::CloudVisualizer vis("str");
+  vis.run();
 
-  for (const auto & seq: sequences)
+  std::vector<std::string> sequences;
+  // sequences.emplace_back("/data/datasets/dataset_project/hangpa00");
+  // sequences.emplace_back("/data/datasets/dataset_project/hangpa01");
+  // sequences.emplace_back("/data/datasets/dataset_project/hangpa02");
+  // sequences.emplace_back("/data/datasets/dataset_project/outdoor00");
+  // sequences.emplace_back("/data/datasets/dataset_project/outdoor01");
+  // sequences.emplace_back("/data/datasets/dataset_project/outdoor02");
+  // sequences.emplace_back("/data/datasets/dataset_project/outdoor03");
+  // sequences.emplace_back("/data/datasets/dataset_project/itbt00");
+  // sequences.emplace_back("/data/datasets/dataset_project/itbt01");
+  // sequences.emplace_back("/data/datasets/dataset_project/itbt02");
+  // sequences.emplace_back("/data/datasets/dataset_project/itbt03");
+  // sequences.emplace_back("/data/datasets/dataset_project/itbt_dark00");
+  // sequences.emplace_back("/data/datasets/dataset_project/itbt_dark01");
+  // sequences.emplace_back("/data/datasets/dataset_project/itbt_dark02");
+  // sequences.emplace_back("/data/datasets/dataset_project/itbt_dark03");
+  sequences.emplace_back("/data/datasets/dataset_haomo/01_02");
+  sequences.emplace_back("/data/datasets/dataset_haomo/03");
+
+  for (const auto & seq_dir: sequences)
   {
-    fmt::print("Process {} ...\n", seq);
-    const auto seq_dir = fmt::format(
-      "/data/datasets/dataset_project/{}", seq);
+    fmt::print("Process {} ...\n", seq_dir);
     processSequence(seq_dir, cfg.target_n_points);
   }
 

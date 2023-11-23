@@ -1,5 +1,10 @@
-set(SPDLOG_INSTALL_PATH ${CMAKE_BINARY_DIR}/thirdparty/spdlog/install/${CMAKE_BUILD_TYPE})
-find_package(spdlog QUIET PATHS ${SPDLOG_INSTALL_PATH}/lib/cmake/spdlog)
+
+if(spdlog_FOUND)
+else()
+  set(SPDLOG_INSTALL_PATH ${CMAKE_BINARY_DIR}/thirdparty/spdlog/install/${CMAKE_BUILD_TYPE})
+  find_package(spdlog QUIET PATHS ${SPDLOG_INSTALL_PATH}/lib/cmake/spdlog)
+endif()
+
 
 if(spdlog_FOUND)
   message(STATUS "Found spdlog.")

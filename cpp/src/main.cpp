@@ -46,6 +46,8 @@ auto main(int argc, char * argv[]) -> int32_t
   spdlog::warn("warn level is {}", spdlog::level::warn);
   spdlog::critical("critical level is {}", spdlog::level::critical);
 
+
+
   // TODO: Setting spdlog custom logger & Test YamlParser using yaml-cpp library
 
   // holyground::example::Print("Hello World!");
