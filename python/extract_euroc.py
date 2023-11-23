@@ -8,8 +8,6 @@ parser = argparse.ArgumentParser()
 parser.add_argument("-r", "--root", type=str)
 args = parser.parse_args()
 
-
-
 def main():
     ROOT = Path(args.root)
     euroc_zip_paths = glob(str(ROOT / '*.zip'))
