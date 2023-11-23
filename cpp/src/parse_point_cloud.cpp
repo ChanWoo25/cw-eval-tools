@@ -435,6 +435,120 @@ void processSequence(
   f_key_data.close();
 }
 
+void processHaomoSequence(
+  const std::string & seq_dir,
+  const size_t & target_num_points)
+{
+  fs::path root_dir(seq_dir);
+  // fs::create_directory(root_dir.parent_path()/"")
+  // spdlog::info("parent_path: {}", root_dir.parent_path().string());
+  // spdlog::info("filename: {}", root_dir.filename().string());
+  auto save_dir = root_dir.parent_path() / (root_dir.filename().string() + "_downsampled");
+  spdlog::info("save_dir: {}", save_dir.string());
+  // spdlog::info("current_path: {}", fs::current_path().string());
+  // spdlog::info("relative_path: {}", root_dir.relative_path().string());
+  // spdlog::info("absolute_path: {}", fs::absolute(root_dir).string());
+  // spdlog::info("canonical_path: {}", fs::canonical(root_dir).string());
+
+  if (fs::exists(root_dir) && fs::is_directory(root_dir))
+  {
+    auto dit = fs::directory_iterator(root_dir);
+    for (const auto & entry : dit)
+    {
+      const auto scan_fn = entry.path().string();
+      const auto new_scan_fn = (save_dir / entry.path().filename()).string();
+      // spdlog::info(scan_fn);
+      spdlog::info("Process {} ...", new_scan_fn);
+
+      auto cloud = readCloud(scan_fn);
+      auto downsampled = downsamplingUntilTargetNumPoints(cloud, target_num_points);
+      auto normalized = normalizeCloud(downsampled);
+      writeScanBinary(new_scan_fn, normalized);
+
+      cwcloud::CloudVisualizer vis("str");
+      vis.setCloud(downsampled, entry.path().filename().string());
+      vis.run();
+    }
+  }
+
+  return;
+  // N_SCAN = 0UL;
+  // timestamps.clear();
+  // translations.clear();
+  // quaternions.clear();
+  // rotations.clear();
+  // scan_fns.clear();
+  // readPoses(seq_dir);
+  // readLidarData(seq_dir);
+
+  // auto keyframe_data_fn = fmt::format("{}/lidar_keyframe_data.txt", seq_dir);
+  // auto keyframe_data_dir = fmt::format("{}/lidar_keyframe_downsampled", seq_dir);
+  // fs::create_directories(keyframe_data_dir);
+  // std::fstream f_key_data (keyframe_data_fn, std::ios::out);
+
+  // size_t prev_idx {10UL};
+  // size_t curr_idx {prev_idx};
+  // // Eigen::Vector3d prev_pos = Eigen::Vector3d::Zero();
+  // // Eigen::Vector3d curr_pos = Eigen::Vector3d::Zero();
+  // for (curr_idx = prev_idx; curr_idx < N_SCAN; ++curr_idx)
+  // {
+  //   if (prev_idx == curr_idx)
+  //   {
+  //     auto & tran = translations[curr_idx];
+  //     auto & quat = quaternions[curr_idx];
+  //     auto line = fmt::format(
+  //       "{:.6f} lidar_keyframe_downsampled/{:06d}.bin {:6f} {:6f} {:6f} {:6f} {:6f} {:6f} {:6f}\n",
+  //       timestamps[curr_idx], curr_idx,
+  //       tran(0), tran(1), tran(2),
+  //       quat.x(), quat.y(), quat.z(), quat.w());
+  //     f_key_data << line;
+  //     /* Downsample cloud into target number of points */
+  //     auto cloud = readCloud(scan_fns[curr_idx]);
+  //     auto downsampled = downsamplingUntilTargetNumPoints(cloud, target_num_points);
+  //     auto normalized = normalizeCloud(downsampled);
+  //     auto new_scan_fn = fmt::format("{}/{:06d}.bin", keyframe_data_dir, curr_idx);
+  //     writeScanBinary(new_scan_fn, normalized);
+  //     fmt::print("[processSequence] Write to {}\n", new_scan_fn);
+  //   }
+  //   else
+  //   {
+  //     auto & prev_t = translations[prev_idx];
+  //     auto & curr_t = translations[curr_idx];
+  //     auto dist = (curr_t - prev_t).norm();
+  //     auto & prev_R = rotations[prev_idx];
+  //     auto & curr_R = rotations[curr_idx];
+  //     Eigen::Matrix3d dist_R = prev_R.transpose() * curr_R;
+  //     Eigen::Vector3d dist_r = Eigen::AngleAxisd(dist_R).angle() * Eigen::AngleAxisd(dist_R).axis();
+  //     if (dist >= 0.5
+  //         || dist_r(0) >= (M_PI * (10.0/180.0))
+  //         || dist_r(1) >= (M_PI * (10.0/180.0))
+  //         || dist_r(2) >= (M_PI * (10.0/180.0)))
+  //     {
+  //       // fmt::print(
+  //       //   "dist({:.3f}), droll({:.3f}), dpitch({:.3f}), dyaw({:.3f})\n",
+  //       //   dist, dist_r(0), dist_r(1), dist_r(2));
+
+  //       auto & tran = translations[curr_idx];
+  //       auto & quat = quaternions[curr_idx];
+  //       auto line = fmt::format(
+  //         "{:.6f} lidar_keyframe_downsampled/{:06d}.bin {:6f} {:6f} {:6f} {:6f} {:6f} {:6f} {:6f}\n",
+  //         timestamps[curr_idx], curr_idx,
+  //         tran(0), tran(1), tran(2),
+  //         quat.x(), quat.y(), quat.z(), quat.w());
+  //       f_key_data << line;
+  //       /* Downsample cloud into target number of points */
+  //       auto cloud = readCloud(scan_fns[curr_idx]);
+  //       auto downsampled = downsamplingUntilTargetNumPoints(cloud, target_num_points);
+  //       auto normalized = normalizeCloud(downsampled);
+  //       auto new_scan_fn = fmt::format("{}/{:06d}.bin", keyframe_data_dir, curr_idx);
+  //       writeScanBinary(new_scan_fn, normalized);
+  //       fmt::print("[processSequence] Write to {}\n", new_scan_fn);
+  //       prev_idx = curr_idx;
+  //     }
+  //   }
+  // }
+  // f_key_data.close();
+}
 struct Config
 {
   int target_n_points = 4096;
@@ -442,8 +556,8 @@ struct Config
 
 auto main() -> int32_t
 {
-  cwcloud::CloudVisualizer vis("str");
-  vis.run();
+  // cwcloud::CloudVisualizer vis("str");
+  // vis.run();
 
   std::vector<std::string> sequences;
   // sequences.emplace_back("/data/datasets/dataset_project/hangpa00");
@@ -467,7 +581,8 @@ auto main() -> int32_t
   for (const auto & seq_dir: sequences)
   {
     fmt::print("Process {} ...\n", seq_dir);
-    processSequence(seq_dir, cfg.target_n_points);
+    // processSequence(seq_dir, cfg.target_n_points);
+    processHaomoSequence(seq_dir, cfg.target_n_points);
   }
 
   return EXIT_SUCCESS;

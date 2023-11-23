@@ -13,7 +13,7 @@ CloudVisualizer::CloudVisualizer(
 {
   root_dir_ = root_dir;
   viewer_ = std::make_shared<pcl::visualization::PCLVisualizer>();
-  viewer_->setBackgroundColor (1.0, 1.0, 1.0);
+  viewer_->setBackgroundColor (0.0, 0.0, 0.0);
   viewer_->addCoordinateSystem (1.0);
   viewer_->initCameraParameters ();
   viewer_->setShowFPS(true);
