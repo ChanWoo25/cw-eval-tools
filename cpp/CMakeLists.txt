@@ -98,6 +98,7 @@ target_link_libraries(parse_point_cloud
   "${PCL_LIBS}"
 )
 target_include_directories(parse_point_cloud PUBLIC
+  ${${PACKAGE_NAME}_INCLUDE_PATH}
   ${SPDLOG_INCLUDE_PATH}
   ${PCL_INCLUDE_PATH}
   ${EIGEN3_INCLUDE_DIRS}

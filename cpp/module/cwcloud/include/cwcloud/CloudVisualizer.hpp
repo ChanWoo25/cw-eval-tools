@@ -19,7 +19,9 @@
 
 #include <memory>
 #include <chrono>
+#include <string>
 #include <thread>
+#include <unordered_map>
 
 using namespace std::chrono_literals;
 
@@ -29,19 +31,31 @@ class CloudVisualizer
 {
 public:
   CloudVisualizer(
-    const std::string & root_dir);
+    const std::string & root_dir,
+    const int nrows=1,
+    const int ncols=1);
   CloudVisualizer()=delete;
   ~CloudVisualizer() {}
 
   void setCloud(
     pcl::PointCloud<pcl::PointXYZI> cloud,
-    const std::string & cloud_id);
+    const std::string & cloud_id = "default",
+    const int vid=0);
+
+  void setGroundInformCloud(
+    pcl::PointCloud<pcl::PointXYZI> cloud_ground,
+    pcl::PointCloud<pcl::PointXYZI> cloud_inform,
+    const std::string & cloud_id = "default-gi",
+    const int vid=0);
 
   void run();
 
 private:
   pcl::visualization::PCLVisualizer::Ptr viewer_;
   std::string root_dir_;
+  std::unordered_map<std::string, bool> cloud_ids_;
+  bool skip_flag = false;
+  std::vector<int> viewport_ids_;
 };
 
 } // namespace cwcloud

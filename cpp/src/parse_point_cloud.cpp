@@ -1,6 +1,11 @@
 // #include <opencv2/opencv.hpp>
 // #include <cv_bridge/cv_bridge.h>
 
+#include <memory>
+#include <pcl/ModelCoefficients.h>
+#include <pcl/PointIndices.h>
+#include <pcl/impl/point_types.hpp>
+#include <pcl/sample_consensus/method_types.h>
 #include <spdlog/common.h>
 #include <spdlog/spdlog.h>
 
@@ -11,6 +16,8 @@
 #include <pcl/io/pcd_io.h>
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
+#include <pcl/filters/extract_indices.h>
+#include <pcl/segmentation/sac_segmentation.h>
 // #include <pcl/filters/voxel_grid.h>
 // #include <sensor_msgs/PointCloud2.h>
 // #include <livox_ros_driver2/CustomMsg.h>
@@ -435,6 +442,9 @@ void processSequence(
   f_key_data.close();
 }
 
+
+cwcloud::CloudVisualizer vis("str", 1, 2);
+
 void processHaomoSequence(
   const std::string & seq_dir,
   const size_t & target_num_points)
@@ -445,6 +455,7 @@ void processHaomoSequence(
   // spdlog::info("filename: {}", root_dir.filename().string());
   auto save_dir = root_dir.parent_path() / (root_dir.filename().string() + "_downsampled");
   spdlog::info("save_dir: {}", save_dir.string());
+  fs::create_directory(save_dir);
   // spdlog::info("current_path: {}", fs::current_path().string());
   // spdlog::info("relative_path: {}", root_dir.relative_path().string());
   // spdlog::info("absolute_path: {}", fs::absolute(root_dir).string());
@@ -461,12 +472,46 @@ void processHaomoSequence(
       spdlog::info("Process {} ...", new_scan_fn);
 
       auto cloud = readCloud(scan_fn);
-      auto downsampled = downsamplingUntilTargetNumPoints(cloud, target_num_points);
+
+      /* Segment Ground */
+      auto coefficients = std::make_shared<pcl::ModelCoefficients>();
+      auto inliers = std::make_shared<pcl::PointIndices>();
+      // pcl::ModelCoefficients::Ptr coefficients(new pcl::ModelCoefficients);
+      // pcl::PointIndices::Ptr inliers(new pcl::PointIndices);
+      pcl::SACSegmentation<pcl::PointXYZI> seg;
+      seg.setOptimizeCoefficients(true);
+      seg.setModelType(pcl::SACMODEL_PLANE);
+      seg.setMethodType(pcl::SAC_RANSAC);
+      // seg.setMaxIterations(1000);
+      seg.setDistanceThreshold(0.5);
+      seg.setInputCloud(cloud.makeShared());
+
+      seg.segment(*inliers, *coefficients);
+
+      pcl::ExtractIndices<pcl::PointXYZI> extract_ground;
+      // pcl::ExtractIndices<pcl::PointXYZI> extract_inform;
+      extract_ground.setInputCloud(cloud.makeShared());
+      // extract_inform.setInputCloud(cloud.makeShared());
+      extract_ground.setIndices(inliers);
+      // extract_inform.setIndices(inliers);
+      extract_ground.setNegative(false); // Extract the ground points
+      // extract_inform.setNegative(true); // Extract the ground points
+      auto ground_cloud = std::make_shared<pcl::PointCloud<pcl::PointXYZI>>();
+      auto inform_cloud = std::make_shared<pcl::PointCloud<pcl::PointXYZI>>();
+      extract_ground.filter(*ground_cloud);
+
+      extract_ground.setNegative(true); // Extract the ground points
+      extract_ground.filter(*inform_cloud);
+      spdlog::info("ground points: {}", ground_cloud->points.size());
+      spdlog::info("not ground points: {}", inform_cloud->points.size());
+      // extract_inform.filter(*inform_cloud);
+
+      auto downsampled = downsamplingUntilTargetNumPoints(*inform_cloud, target_num_points);
       auto normalized = normalizeCloud(downsampled);
       writeScanBinary(new_scan_fn, normalized);
 
-      cwcloud::CloudVisualizer vis("str");
-      vis.setCloud(downsampled, entry.path().filename().string());
+      vis.setGroundInformCloud(*ground_cloud, *inform_cloud, "origin", 0);
+      vis.setCloud(downsampled, "downsampled", 1); // , entry.path().filename().string()
       vis.run();
     }
   }
@@ -575,7 +620,7 @@ auto main() -> int32_t
   // sequences.emplace_back("/data/datasets/dataset_project/itbt_dark01");
   // sequences.emplace_back("/data/datasets/dataset_project/itbt_dark02");
   // sequences.emplace_back("/data/datasets/dataset_project/itbt_dark03");
-  sequences.emplace_back("/data/datasets/dataset_haomo/01_02");
+  // sequences.emplace_back("/data/datasets/dataset_haomo/01_02");
   sequences.emplace_back("/data/datasets/dataset_haomo/03");
 
   for (const auto & seq_dir: sequences)
