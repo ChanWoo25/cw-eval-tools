@@ -97,58 +97,28 @@ namespace fs = std::filesystem;
 //   fmt::print("[readLidarData] Fin Scan '{}'\n", scan_fns.back());
 // }
 
-// pcl::PointXYZI vec2point(const Eigen::Vector3d &vec) {
-//   pcl::PointXYZI pi;
-//   pi.x = vec[0];
-//   pi.y = vec[1];
-//   pi.z = vec[2];
-//   return pi;
-// }
-// pcl::PointXYZ vec2pt_XYZ(const Eigen::Vector3d &vec) {
-//   pcl::PointXYZ pt;
-//   pt.x = vec[0];
-//   pt.y = vec[1];
-//   pt.z = vec[2];
-//   return pt;
-// }
+pcl::PointXYZI vec2point(const Eigen::Vector3d &vec) {
+  pcl::PointXYZI pi;
+  pi.x = vec[0];
+  pi.y = vec[1];
+  pi.z = vec[2];
+  return pi;
+}
 
-// Eigen::Vector3d pt2vec(const pcl::PointXYZI &pi) {
-//   return Eigen::Vector3d(pi.x, pi.y, pi.z);
-// }
-// Eigen::Vector3d pt2vec_XYZ(const pcl::PointXYZ &pi) {
-//   return Eigen::Vector3d(pi.x, pi.y, pi.z);
-// }
+pcl::PointXYZ vec2pt_XYZ(const Eigen::Vector3d &vec) {
+  pcl::PointXYZ pt;
+  pt.x = vec[0];
+  pt.y = vec[1];
+  pt.z = vec[2];
+  return pt;
+}
 
-// auto readCloudXYZ64(
-//   const std::string & scan_fn)
-//   ->pcl::PointCloud<pcl::PointXYZ>
-// {
-//   std::fstream f_bin(scan_fn, std::ios::in | std::ios::binary);
-//   // ROS_ASSERT(f_bin.is_open());
-
-//   f_bin.seekg(0, std::ios::end);
-//   const size_t num_elements = f_bin.tellg() / sizeof(double);
-//   std::vector<double> buf(num_elements);
-//   f_bin.seekg(0, std::ios::beg);
-//   f_bin.read(
-//     reinterpret_cast<char *>(
-//       &buf[0]),
-//       num_elements * sizeof(double));
-//   f_bin.close();
-//   // fmt::print("Add {} pts\n", num_elements/4);
-//   pcl::PointCloud<pcl::PointXYZ> cloud;
-//   for (std::size_t i = 0; i < buf.size(); i += 3)
-//   {
-//     pcl::PointXYZ point;
-//     point.x = buf[i];
-//     point.y = buf[i + 1];
-//     point.z = buf[i + 2];
-//     Eigen::Vector3d pv = pt2vec_XYZ(point);
-//     point = vec2pt_XYZ(pv);
-//     cloud.push_back(point);
-//   }
-//   return cloud;
-// }
+Eigen::Vector3d pt2vec(const pcl::PointXYZI &pi) {
+  return Eigen::Vector3d(pi.x, pi.y, pi.z);
+}
+Eigen::Vector3d pt2vec_XYZ(const pcl::PointXYZ &pi) {
+  return Eigen::Vector3d(pi.x, pi.y, pi.z);
+}
 
 // auto getCloudMeanStd(
 //   const pcl::PointCloud<pcl::PointXYZI> & cloud)
@@ -358,6 +328,106 @@ auto readCatalog(
   return std::make_tuple(dbase_catalog, query_catalog);
 }
 
+using StateVec = std::vector<std::string>;
+using PosVec = std::vector<int>;
+using NegVec = std::vector<std::vector<int>>;
+using ScoreVec = std::vector<double>;
+auto readDebugFile(
+  const fs::path & debug_fn)
+  -> std::tuple<StateVec, PosVec, NegVec, ScoreVec>
+{
+  std::ifstream fin(debug_fn);
+  StateVec state_vec;
+  PosVec pos_vec;
+  NegVec neg_vec;
+  ScoreVec score_vec;
+
+  std::string line;
+  int n_lines = 0;
+  unsigned cnt_found = 0;
+  unsigned cnt_not_found = 0;
+  while (std::getline(fin, line))
+  {
+    if (line.empty()) { break; }
+    ++n_lines;
+    state_vec.push_back("Fail");
+    pos_vec.push_back(-1);
+    neg_vec.push_back(std::vector<int>());
+    score_vec.push_back(-1.0);
+
+    std::istringstream iss(line);
+    int query_index;
+    std::string state;
+    int match_index;
+    double score;
+    iss >> query_index;
+
+    char test_char;
+    while (iss.readsome(&test_char, 1) != 0)
+    {
+      iss >> state >> match_index;
+      if (state == "T")
+      {
+        iss >> score;
+        state_vec.back() = "Find";
+        pos_vec.back() = match_index;
+        score_vec.back() = score;
+        break;
+      }
+      else if (state == "F")
+      {
+        neg_vec.back().push_back(match_index);
+      }
+      else
+      {
+        break;
+        spdlog::warn("Something Wrong, {}", state);
+      }
+    }
+
+    if (state_vec.back() == "Find") {
+      ++cnt_found;
+    } else {
+      ++cnt_not_found;
+    }
+  }
+
+  fin.close();
+  spdlog::info("debug size: {} | Found({}), Not found({})", n_lines, cnt_found, cnt_not_found);
+  return std::make_tuple(state_vec, pos_vec, neg_vec, score_vec);
+}
+
+auto readCloudXYZ64(
+  const std::string & scan_fn)
+  ->pcl::PointCloud<pcl::PointXYZ>
+{
+  std::fstream f_bin(scan_fn, std::ios::in | std::ios::binary);
+  // ROS_ASSERT(f_bin.is_open());
+
+  f_bin.seekg(0, std::ios::end);
+  const size_t num_elements = f_bin.tellg() / sizeof(double);
+  std::vector<double> buf(num_elements);
+  f_bin.seekg(0, std::ios::beg);
+  f_bin.read(
+    reinterpret_cast<char *>(
+      &buf[0]),
+      num_elements * sizeof(double));
+  f_bin.close();
+  // fmt::print("Add {} pts\n", num_elements/4);
+  pcl::PointCloud<pcl::PointXYZ> cloud;
+  for (std::size_t i = 0; i < buf.size(); i += 3)
+  {
+    pcl::PointXYZ point;
+    point.x = buf[i];
+    point.y = buf[i + 1];
+    point.z = buf[i + 2];
+    Eigen::Vector3d pv = pt2vec_XYZ(point);
+    point = vec2pt_XYZ(pv);
+    cloud.push_back(point);
+  }
+  return cloud;
+}
+
 auto main() -> int32_t
 {
   fs::path datasets_dir("/data/datasets");
@@ -387,7 +457,73 @@ auto main() -> int32_t
   fout << fmt::format("qeuries, length: {}", query_catalog.size());
   fout.close();
 
-  cwcloud::CloudVisualizer vis("Debug", 3, 3);
+  const auto debug_fn = debug_dir / "db-1-qr-0-debug.txt";
+  const auto [state_vec, pos_vec, neg_vec, score_vec]
+    = readDebugFile(debug_fn);
+
+  cwcloud::CloudVisualizer vis("debug_pcpr", 2, 3);
+
+  /* Query */
+  int qi = 19;
+  {
+    const auto scan_fn = benchmark_dir / query_catalog[qi].path;
+    const auto scan = readCloudXYZ64(scan_fn.string());
+    const auto row = 0;
+    const auto col = 0;
+    spdlog::info("read scan from {} | n_points: {}", scan_fn.string(), scan.size());
+    vis.setCloudXYZ(scan, row, col);
+  }
+
+  int db_idx = 1;
+
+  int ti = pos_vec[qi];
+  {
+    const auto scan_fn = benchmark_dir / dbase_catalog[db_idx][ti].path;
+    const auto scan = readCloudXYZ64(scan_fn.string());
+    const auto row = 0;
+    const auto col = 1;
+    spdlog::info("read scan from {} | n_points: {}", scan_fn.string(), scan.size());
+    vis.setCloudXYZ(scan, row, col);
+  }
+
+  {
+    int fi = neg_vec[qi][0];
+    const auto scan_fn = benchmark_dir / dbase_catalog[db_idx][fi].path;
+    const auto scan = readCloudXYZ64(scan_fn.string());
+    const auto row = 0;
+    const auto col = 2;
+    spdlog::info("read scan from {} | n_points: {}", scan_fn.string(), scan.size());
+    vis.setCloudXYZ(scan, row, col);
+  }
+  {
+    int fi = neg_vec[qi][1];
+    const auto scan_fn = benchmark_dir / dbase_catalog[db_idx][fi].path;
+    const auto scan = readCloudXYZ64(scan_fn.string());
+    const auto row = 1;
+    const auto col = 0;
+    spdlog::info("read scan from {} | n_points: {}", scan_fn.string(), scan.size());
+    vis.setCloudXYZ(scan, row, col);
+  }
+  {
+    int fi = neg_vec[qi][2];
+    const auto scan_fn = benchmark_dir / dbase_catalog[db_idx][fi].path;
+    const auto scan = readCloudXYZ64(scan_fn.string());
+    const auto row = 1;
+    const auto col = 1;
+    spdlog::info("read scan from {} | n_points: {}", scan_fn.string(), scan.size());
+    vis.setCloudXYZ(scan, row, col);
+  }
+  {
+    int fi = neg_vec[qi][3];
+    const auto scan_fn = benchmark_dir / dbase_catalog[db_idx][fi].path;
+    const auto scan = readCloudXYZ64(scan_fn.string());
+    const auto row = 1;
+    const auto col = 2;
+    spdlog::info("read scan from {} | n_points: {}", scan_fn.string(), scan.size());
+    vis.setCloudXYZ(scan, row, col);
+  }
+
+  vis.run();
 
   return EXIT_SUCCESS;
 }

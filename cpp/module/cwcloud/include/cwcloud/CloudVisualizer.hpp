@@ -39,8 +39,14 @@ public:
 
   void setCloud(
     pcl::PointCloud<pcl::PointXYZI> cloud,
-    const std::string & cloud_id = "default",
+    const std::string & cloud_id = "cloud",
     const int vid=0);
+
+  void setCloudXYZ(
+    pcl::PointCloud<pcl::PointXYZ> cloud,
+    const int & nrow,
+    const int & ncol,
+    const std::string & _cloud_id="");
 
   void setGroundInformCloud(
     pcl::PointCloud<pcl::PointXYZI> cloud_ground,
@@ -50,12 +56,17 @@ public:
 
   void run();
 
+  inline
+  auto getKeySym() const -> std::string { return key_sym_; }
+
 private:
   pcl::visualization::PCLVisualizer::Ptr viewer_;
   std::string root_dir_;
   std::unordered_map<std::string, bool> cloud_ids_;
   bool skip_flag = false;
   std::vector<int> viewport_ids_;
+  int nrows_, ncols_;
+  std::string key_sym_;
 };
 
 } // namespace cwcloud
