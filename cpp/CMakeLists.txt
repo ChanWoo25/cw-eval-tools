@@ -91,6 +91,7 @@ add_subdirectory(${${PACKAGE_NAME}_MODULE_PATH})
 message(STATUS "SPDLOG_INCLUDE_PATH: ${SPDLOG_INCLUDE_PATH}")
 message(STATUS "SPDLOG_LIBS: ${SPDLOG_LIBS}")
 message(STATUS "PCL_LIBS: ${PCL_LIBS}")
+
 add_executable(parse_point_cloud src/parse_point_cloud.cpp)
 target_link_libraries(parse_point_cloud
   CWCLOUD
@@ -106,3 +107,21 @@ target_include_directories(parse_point_cloud PUBLIC
 target_compile_options(parse_point_cloud PRIVATE
   -Wall -Wextra -Wpedantic -Werror
 )
+
+add_executable(debug_pcpr src/debug_pcpr.cpp)
+target_link_libraries(debug_pcpr
+  CWCLOUD
+  ${SPDLOG_LIBS}
+  "${PCL_LIBS}"
+)
+target_include_directories(debug_pcpr PUBLIC
+  ${${PACKAGE_NAME}_INCLUDE_PATH}
+  ${SPDLOG_INCLUDE_PATH}
+  ${PCL_INCLUDE_PATH}
+  ${EIGEN3_INCLUDE_DIRS}
+)
+target_compile_options(debug_pcpr PRIVATE
+  -Wall -Wextra -Wpedantic -Werror
+)
+
+
