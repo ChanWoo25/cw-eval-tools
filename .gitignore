@@ -1,6 +1,7 @@
 # Build
 build
 build/**
+*/compile_commands.json
 
 # VSCode
 .idea/**
