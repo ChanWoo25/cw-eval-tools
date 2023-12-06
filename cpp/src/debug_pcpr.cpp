@@ -1,12 +1,14 @@
 // #include <opencv2/opencv.hpp>
 // #include <cv_bridge/cv_bridge.h>
 
+#include <cmath>
 #include <memory>
 #include <pcl/ModelCoefficients.h>
 #include <pcl/PointIndices.h>
 #include <pcl/impl/point_types.hpp>
 #include <pcl/sample_consensus/method_types.h>
 #include <spdlog/common.h>
+#include <spdlog/fmt/bundled/core.h>
 #include <spdlog/fmt/bundled/format.h>
 #include <spdlog/spdlog.h>
 
@@ -34,6 +36,18 @@
 #include "cwcloud/CloudVisualizer.hpp"
 
 namespace fs = std::filesystem;
+
+std::string strip(const std::string & str)
+{
+    auto start_it = str.begin();
+    auto end_it = str.rbegin();
+    while (std::isspace(*start_it)) { ++start_it; }
+    while ( std::isspace(*end_it) ) {  ++end_it;  }
+    const auto len = end_it.base() - start_it;
+    return (len <= 0)
+           ? std::string("")
+           : std::string(start_it, end_it.base());
+}
 
 // std::vector<double> timestamps;
 // std::vector<Eigen::Matrix3d> rotations;
@@ -282,7 +296,6 @@ auto readCatalog(
   for (uint32_t i = 0U; i < 14; ++i)
   {
     const auto catalog_fn = catalog_dir / fmt::format("db_catalog_{}.txt", i);
-    spdlog::info("Read {} ...", catalog_fn.string());
     std::ifstream fin(catalog_fn.string());
     std::string line;
     int n_lines = 0;
@@ -300,12 +313,10 @@ auto readCatalog(
       dbase_catalog[i].emplace_back(bin_path, northing, easting);
     }
     fin.close();
-    spdlog::info("{:02d}-th db size: {}", i, n_lines);
   }
 
   /* Read Query catalogs */
   const auto catalog_fn = catalog_dir / fmt::format("qr_catalog.txt");
-  spdlog::info("Read {} ...", catalog_fn.string());
   std::ifstream fin(catalog_fn.string());
   std::string line;
   int n_lines = 0;
@@ -323,7 +334,6 @@ auto readCatalog(
     query_catalog.emplace_back(bin_path, northing, easting);
   }
   fin.close();
-  spdlog::info("qr size: {}", n_lines);
 
   return std::make_tuple(dbase_catalog, query_catalog);
 }
@@ -331,6 +341,7 @@ auto readCatalog(
 using StateVec = std::vector<std::string>;
 using PosVec = std::vector<int>;
 using NegVec = std::vector<std::vector<int>>;
+using ScoreVec = std::vector<double>;
 using ScoreVec = std::vector<double>;
 auto readDebugFile(
   const fs::path & debug_fn)
@@ -346,8 +357,10 @@ auto readDebugFile(
   int n_lines = 0;
   unsigned cnt_found = 0;
   unsigned cnt_not_found = 0;
+  unsigned cnt_no_answer = 0;
   while (std::getline(fin, line))
   {
+    line = strip(line);
     if (line.empty()) { break; }
     ++n_lines;
     state_vec.push_back("Fail");
@@ -385,15 +398,26 @@ auto readDebugFile(
       }
     }
 
-    if (state_vec.back() == "Find") {
-      ++cnt_found;
+    if (state_vec.back() == "Fail" && neg_vec.back().empty()) {
+      state_vec.back() = "None";
+      ++cnt_no_answer;
     } else {
-      ++cnt_not_found;
+      if (state_vec.back() == "Find") {
+        ++cnt_found;
+      } else {
+        ++cnt_not_found;
+      }
+    }
+
+    if (n_lines >= 1059)
+    {
+      break;
     }
   }
 
   fin.close();
-  spdlog::info("debug size: {} | Found({}), Not found({})", n_lines, cnt_found, cnt_not_found);
+  spdlog::info("debug size: {} | Found({}), Not found({}), No answer({})",
+    n_lines, cnt_found, cnt_not_found, cnt_no_answer);
   return std::make_tuple(state_vec, pos_vec, neg_vec, score_vec);
 }
 
@@ -438,28 +462,76 @@ auto main() -> int32_t
   const auto catalog_dir = cs_campus_dir / "catalog";
 
   // auto save_dir = cs_campus_dir;
-  const auto save_fn = cs_campus_dir / "test.txt";
-  spdlog::info("save_fn: {}", save_fn.string());
+  // const auto save_fn = cs_campus_dir / "test.txt";
+  // spdlog::info("save_fn: {}", save_fn.string());
   // fs::create_directory(save_dir);
   // spdlog::info("current_path: {}", fs::current_path().string());
   // spdlog::info("relative_path: {}", root_dir.relative_path().string());
   // spdlog::info("absolute_path: {}", fs::absolute(root_dir).string());
   // spdlog::info("canonical_path: {}", fs::canonical(root_dir).string());
 
+  spdlog::info("[readCatalog]");
   const auto [dbase_catalog, query_catalog]
     = readCatalog(catalog_dir);
-
-  std::ofstream fout(save_fn); int idx = 0;
-  for (const auto & catalog: dbase_catalog)
+  for (uint32_t di = 0U; di < dbase_catalog.size(); di++)
   {
-    fout << fmt::format("{}-th db, length: {}", idx, catalog.size());
+    spdlog::info("- {}-th db, length: {}", di, dbase_catalog[di].size());
   }
-  fout << fmt::format("qeuries, length: {}", query_catalog.size());
-  fout.close();
+  spdlog::info("- qeuries, length: {}", query_catalog.size());
 
-  const auto debug_fn = debug_dir / "db-1-qr-0-debug.txt";
-  const auto [state_vec, pos_vec, neg_vec, score_vec]
-    = readDebugFile(debug_fn);
+  /* Let's see Histogram */
+  auto getDistance
+    = [](const double & x1, const double & y1,
+         const double & x2, const double & y2) -> double
+      {
+        return std::sqrt(std::pow(x1-x2, 2.0) + std::pow(y1-y2, 2.0));
+      };
+  for (uint32_t di = 1U; di < dbase_catalog.size(); di++)
+  {
+    const auto & sub_dbase_catalog = dbase_catalog[di];
+
+    /* Read corresponding debug file */
+    const auto debug_fn = debug_dir / fmt::format("db-{}-qr-0-debug.txt", di);
+    const auto output_fn = debug_dir / fmt::format("db-{}-qr-0-distances.txt", di);
+    const auto [state_vec, pos_vec, neg_vec, score_vec]
+      = readDebugFile(debug_fn);
+
+    std::ofstream fout(output_fn);
+    for (uint32_t qi = 0U; qi < query_catalog.size(); qi++)
+    {
+      fout << fmt::format("{:04d}", qi);
+      const auto q_north = query_catalog[qi].northing;
+      const auto q_east = query_catalog[qi].easting;
+
+      if (state_vec[qi] == "Find")
+      {
+        const auto mi = pos_vec[qi];
+        const auto m_north = sub_dbase_catalog[mi].northing;
+        const auto m_east  = sub_dbase_catalog[mi].easting;
+        const auto dist = getDistance(q_north, q_east, m_north, m_east);
+        fout << fmt::format(" {} {:.6f} {:.6f} {:.6f} {:.6f} {:.6f} {:.6f}\n",
+          state_vec[qi], q_north, q_east, m_north, m_east, dist, score_vec[qi]);
+      }
+      else if (state_vec[qi] == "Fail")
+      {
+        const auto mi = neg_vec[qi].front();
+        const auto m_north = sub_dbase_catalog[mi].northing;
+        const auto m_east  = sub_dbase_catalog[mi].easting;
+        const auto dist = getDistance(q_north, q_east, m_north, m_east);
+        fout << fmt::format(" {} {:.6f} {:.6f} {:.6f} {:.6f} {:.6f} {:.6f}\n",
+          state_vec[qi], q_north, q_east, m_north, m_east, dist, score_vec[qi]);
+      }
+      else if (state_vec[qi] == "None")
+      {
+        fout << fmt::format(" {}\n", state_vec[qi]);
+      }
+      else
+      {
+        spdlog::warn("Something wrong.");
+      }
+    }
+  }
+
 
   cwcloud::CloudVisualizer vis("debug_pcpr", 2, 3);
 
@@ -474,11 +546,15 @@ auto main() -> int32_t
     vis.setCloudXYZ(scan, row, col);
   }
 
-  int db_idx = 1;
+  int di = 1;
+  const auto debug_fn = debug_dir / fmt::format("db-{}-qr-0-debug.txt", di);
+  const auto output_fn = debug_dir / fmt::format("db-{}-qr-0-distances.txt", di);
+  const auto [state_vec, pos_vec, neg_vec, score_vec]
+    = readDebugFile(debug_fn);
 
   int ti = pos_vec[qi];
   {
-    const auto scan_fn = benchmark_dir / dbase_catalog[db_idx][ti].path;
+    const auto scan_fn = benchmark_dir / dbase_catalog[di][ti].path;
     const auto scan = readCloudXYZ64(scan_fn.string());
     const auto row = 0;
     const auto col = 1;
@@ -488,7 +564,7 @@ auto main() -> int32_t
 
   {
     int fi = neg_vec[qi][0];
-    const auto scan_fn = benchmark_dir / dbase_catalog[db_idx][fi].path;
+    const auto scan_fn = benchmark_dir / dbase_catalog[di][fi].path;
     const auto scan = readCloudXYZ64(scan_fn.string());
     const auto row = 0;
     const auto col = 2;
@@ -497,7 +573,7 @@ auto main() -> int32_t
   }
   {
     int fi = neg_vec[qi][1];
-    const auto scan_fn = benchmark_dir / dbase_catalog[db_idx][fi].path;
+    const auto scan_fn = benchmark_dir / dbase_catalog[di][fi].path;
     const auto scan = readCloudXYZ64(scan_fn.string());
     const auto row = 1;
     const auto col = 0;
@@ -506,7 +582,7 @@ auto main() -> int32_t
   }
   {
     int fi = neg_vec[qi][2];
-    const auto scan_fn = benchmark_dir / dbase_catalog[db_idx][fi].path;
+    const auto scan_fn = benchmark_dir / dbase_catalog[di][fi].path;
     const auto scan = readCloudXYZ64(scan_fn.string());
     const auto row = 1;
     const auto col = 1;
@@ -515,7 +591,7 @@ auto main() -> int32_t
   }
   {
     int fi = neg_vec[qi][3];
-    const auto scan_fn = benchmark_dir / dbase_catalog[db_idx][fi].path;
+    const auto scan_fn = benchmark_dir / dbase_catalog[di][fi].path;
     const auto scan = readCloudXYZ64(scan_fn.string());
     const auto row = 1;
     const auto col = 2;
