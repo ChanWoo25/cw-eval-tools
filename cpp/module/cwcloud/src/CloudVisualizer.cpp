@@ -27,9 +27,12 @@ CloudVisualizer::CloudVisualizer(
   if (nrows == 1 && ncols == 1)
   {
     viewer_->createViewPort(0.0, 0.0, 1.0, 1.0, viewport_ids_[0]);
-    viewer_->setBackgroundColor (1.0, 1.0, 1.0);
-    viewer_->addCoordinateSystem (1.0);
-    viewer_->setCameraPosition(1.0, 0.0, 0.0, 0.0, 0.0, 1.0);
+    viewer_->setBackgroundColor(0.0, 0.0, 0.0, viewport_ids_[0]);
+    viewer_->addCoordinateSystem(0.05, "reference", viewport_ids_[0]);
+    viewer_->setCameraPosition(
+      0.559224, -2.15324, 1.97632,
+      -0.274383, 0.614747, 0.739459,
+      viewport_ids_[0]);
   }
   else if (nrows == 1 && ncols == 2)
   {

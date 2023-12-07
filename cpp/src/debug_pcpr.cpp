@@ -1,6 +1,3 @@
-// #include <opencv2/opencv.hpp>
-// #include <cv_bridge/cv_bridge.h>
-
 #include <cmath>
 #include <cstdlib>
 #include <memory>
@@ -13,18 +10,14 @@
 #include <spdlog/fmt/bundled/format.h>
 #include <spdlog/spdlog.h>
 
-
 #include <Eigen/Dense>
 #include <Eigen/Geometry>
-// #include <pcl_conversions/pcl_conversions.h>
+// #include <opencv2/opencv.hpp>
 #include <pcl/io/pcd_io.h>
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
 #include <pcl/filters/extract_indices.h>
 #include <pcl/segmentation/sac_segmentation.h>
-// #include <pcl/filters/voxel_grid.h>
-// #include <sensor_msgs/PointCloud2.h>
-// #include <livox_ros_driver2/CustomMsg.h>
 
 #include <fstream>
 #include <string>
@@ -40,14 +33,14 @@ namespace fs = std::filesystem;
 
 std::string strip(const std::string & str)
 {
-    auto start_it = str.begin();
-    auto end_it = str.rbegin();
-    while (std::isspace(*start_it)) { ++start_it; }
-    while ( std::isspace(*end_it) ) {  ++end_it;  }
-    const auto len = end_it.base() - start_it;
-    return (len <= 0)
-           ? std::string("")
-           : std::string(start_it, end_it.base());
+  auto start_it = str.begin();
+  auto end_it = str.rbegin();
+  while (std::isspace(*start_it)) { ++start_it; }
+  while ( std::isspace(*end_it) ) {  ++end_it;  }
+  const auto len = end_it.base() - start_it;
+  return (len <= 0)
+          ? std::string("")
+          : std::string(start_it, end_it.base());
 }
 
 // std::vector<double> timestamps;
@@ -625,9 +618,9 @@ auto main(int argc, char * argv[]) -> int32_t
     {
       ni = std::min(neg_vec[qi].size()-1UL, ni+1UL);
     }
-    else if (vis.getKeySym() == "Left")
+    else if (vis.getKeySym() == "Left" && 0UL < ni)
     {
-      ni = std::max(0UL, ni-1UL);
+      --ni;
     }
   }
 

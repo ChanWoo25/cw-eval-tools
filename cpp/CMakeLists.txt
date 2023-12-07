@@ -124,4 +124,20 @@ target_compile_options(debug_pcpr PRIVATE
   -Wall -Wextra -Wpedantic -Werror
 )
 
+add_executable(explore_cs_campus src/explore_cs_campus.cpp)
+target_link_libraries(explore_cs_campus
+  CWCLOUD
+  ${SPDLOG_LIBS}
+  "${PCL_LIBS}"
+)
+target_include_directories(explore_cs_campus PUBLIC
+  ${${PACKAGE_NAME}_INCLUDE_PATH}
+  ${SPDLOG_INCLUDE_PATH}
+  ${PCL_INCLUDE_PATH}
+  ${EIGEN3_INCLUDE_DIRS}
+)
+target_compile_options(explore_cs_campus PRIVATE
+  -Wall -Wextra -Wpedantic -Werror
+)
+
 
