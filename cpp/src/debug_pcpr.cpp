@@ -2,6 +2,7 @@
 // #include <cv_bridge/cv_bridge.h>
 
 #include <cmath>
+#include <cstdlib>
 #include <memory>
 #include <pcl/ModelCoefficients.h>
 #include <pcl/PointIndices.h>
@@ -264,6 +265,7 @@ struct Config
 {
   int target_n_points = 4096;
   std::string root_dir;
+  int database_index {-1};
 } cfg ;
 
 struct MetaPerScan
@@ -452,8 +454,15 @@ auto readCloudXYZ64(
   return cloud;
 }
 
-auto main() -> int32_t
+auto main(int argc, char * argv[]) -> int32_t
 {
+  if (argc >= 2)
+  {
+    cfg.database_index = std::stoi(std::string(argv[1]));
+    spdlog::info("Config.database_index: {}", cfg.database_index);
+    if (!(1 <= cfg.database_index && cfg.database_index < 14)) { return EXIT_FAILURE; }
+  }
+
   fs::path datasets_dir("/data/datasets");
   const auto cs_campus_dir = datasets_dir / "dataset_cs_campus";
   const auto benchmark_dir = cs_campus_dir / "benchmark_datasets";
@@ -480,126 +489,147 @@ auto main() -> int32_t
   spdlog::info("- qeuries, length: {}", query_catalog.size());
 
   /* Let's see Histogram */
-  auto getDistance
-    = [](const double & x1, const double & y1,
-         const double & x2, const double & y2) -> double
-      {
-        return std::sqrt(std::pow(x1-x2, 2.0) + std::pow(y1-y2, 2.0));
-      };
-  for (uint32_t di = 1U; di < dbase_catalog.size(); di++)
-  {
-    const auto & sub_dbase_catalog = dbase_catalog[di];
+  // auto getDistance
+  //   = [](const double & x1, const double & y1,
+  //        const double & x2, const double & y2) -> double
+  //     {
+  //       return std::sqrt(std::pow(x1-x2, 2.0) + std::pow(y1-y2, 2.0));
+  //     };
+  // for (uint32_t di = 1U; di < dbase_catalog.size(); di++)
+  // {
+  //   const auto & sub_dbase_catalog = dbase_catalog[di];
 
-    /* Read corresponding debug file */
-    const auto debug_fn = debug_dir / fmt::format("db-{}-qr-0-debug.txt", di);
-    const auto output_fn = debug_dir / fmt::format("db-{}-qr-0-distances.txt", di);
-    const auto [state_vec, pos_vec, neg_vec, score_vec]
-      = readDebugFile(debug_fn);
+  //   /* Read corresponding debug file */
+  //   const auto debug_fn = debug_dir / fmt::format("db-{}-qr-0-debug.txt", di);
+  //   const auto output_fn = debug_dir / fmt::format("db-{}-qr-0-distances.txt", di);
+  //   const auto [state_vec, pos_vec, neg_vec, score_vec]
+  //     = readDebugFile(debug_fn);
 
-    std::ofstream fout(output_fn);
-    for (uint32_t qi = 0U; qi < query_catalog.size(); qi++)
-    {
-      fout << fmt::format("{:04d}", qi);
-      const auto q_north = query_catalog[qi].northing;
-      const auto q_east = query_catalog[qi].easting;
+  //   std::ofstream fout(output_fn);
+  //   for (uint32_t qi = 0U; qi < query_catalog.size(); qi++)
+  //   {
+  //     fout << fmt::format("{:04d}", qi);
+  //     const auto q_north = query_catalog[qi].northing;
+  //     const auto q_east = query_catalog[qi].easting;
 
-      if (state_vec[qi] == "Find")
-      {
-        const auto mi = pos_vec[qi];
-        const auto m_north = sub_dbase_catalog[mi].northing;
-        const auto m_east  = sub_dbase_catalog[mi].easting;
-        const auto dist = getDistance(q_north, q_east, m_north, m_east);
-        fout << fmt::format(" {} {:.6f} {:.6f} {:.6f} {:.6f} {:.6f} {:.6f}\n",
-          state_vec[qi], q_north, q_east, m_north, m_east, dist, score_vec[qi]);
-      }
-      else if (state_vec[qi] == "Fail")
-      {
-        const auto mi = neg_vec[qi].front();
-        const auto m_north = sub_dbase_catalog[mi].northing;
-        const auto m_east  = sub_dbase_catalog[mi].easting;
-        const auto dist = getDistance(q_north, q_east, m_north, m_east);
-        fout << fmt::format(" {} {:.6f} {:.6f} {:.6f} {:.6f} {:.6f} {:.6f}\n",
-          state_vec[qi], q_north, q_east, m_north, m_east, dist, score_vec[qi]);
-      }
-      else if (state_vec[qi] == "None")
-      {
-        fout << fmt::format(" {}\n", state_vec[qi]);
-      }
-      else
-      {
-        spdlog::warn("Something wrong.");
-      }
-    }
-  }
+  //     if (state_vec[qi] == "Find")
+  //     {
+  //       const auto mi = pos_vec[qi];
+  //       const auto m_north = sub_dbase_catalog[mi].northing;
+  //       const auto m_east  = sub_dbase_catalog[mi].easting;
+  //       const auto dist = getDistance(q_north, q_east, m_north, m_east);
+  //       fout << fmt::format(" {} {:.6f} {:.6f} {:.6f} {:.6f} {:.6f} {:.6f}\n",
+  //         state_vec[qi], q_north, q_east, m_north, m_east, dist, score_vec[qi]);
+  //     }
+  //     else if (state_vec[qi] == "Fail")
+  //     {
+  //       const auto mi = neg_vec[qi].front();
+  //       const auto m_north = sub_dbase_catalog[mi].northing;
+  //       const auto m_east  = sub_dbase_catalog[mi].easting;
+  //       const auto dist = getDistance(q_north, q_east, m_north, m_east);
+  //       fout << fmt::format(" {} {:.6f} {:.6f} {:.6f} {:.6f} {:.6f} {:.6f}\n",
+  //         state_vec[qi], q_north, q_east, m_north, m_east, dist, score_vec[qi]);
+  //     }
+  //     else if (state_vec[qi] == "None")
+  //     {
+  //       fout << fmt::format(" {}\n", state_vec[qi]);
+  //     }
+  //     else
+  //     {
+  //       spdlog::warn("Something wrong.");
+  //     }
+  //   }
+  // }
 
 
   cwcloud::CloudVisualizer vis("debug_pcpr", 2, 3);
+  const auto di = cfg.database_index;
+  const int QI_MIN = 0;
+  const int QI_MAX = 1058;
+  int qi = 0; // Query cloud index
+  size_t ni = 0; // Negative cloud index
 
-  /* Query */
-  int qi = 19;
-  {
-    const auto scan_fn = benchmark_dir / query_catalog[qi].path;
-    const auto scan = readCloudXYZ64(scan_fn.string());
-    const auto row = 0;
-    const auto col = 0;
-    spdlog::info("read scan from {} | n_points: {}", scan_fn.string(), scan.size());
-    vis.setCloudXYZ(scan, row, col);
-  }
-
-  int di = 1;
+  const auto & sub_dbase_catalog = dbase_catalog[di];
   const auto debug_fn = debug_dir / fmt::format("db-{}-qr-0-debug.txt", di);
   const auto output_fn = debug_dir / fmt::format("db-{}-qr-0-distances.txt", di);
   const auto [state_vec, pos_vec, neg_vec, score_vec]
     = readDebugFile(debug_fn);
 
-  int ti = pos_vec[qi];
+  while (!vis.wasStopped())
   {
-    const auto scan_fn = benchmark_dir / dbase_catalog[di][ti].path;
-    const auto scan = readCloudXYZ64(scan_fn.string());
-    const auto row = 0;
-    const auto col = 1;
-    spdlog::info("read scan from {} | n_points: {}", scan_fn.string(), scan.size());
-    vis.setCloudXYZ(scan, row, col);
-  }
+    { /*  Register Query Cloud  & Clean other grids */
+      const auto scan_fn = benchmark_dir / query_catalog[qi].path;
+      const auto scan = readCloudXYZ64(scan_fn.string());
+      // spdlog::info("read scan from {} | n_points: {}", scan_fn.string(), scan.size());
+      vis.setCloudXYZ(scan, 1, 0);
+      vis.setCloudXYZ(pcl::PointCloud<pcl::PointXYZ>(), 1, 1);
+      vis.setCloudXYZ(pcl::PointCloud<pcl::PointXYZ>(), 0, 0);
+      vis.setCloudXYZ(pcl::PointCloud<pcl::PointXYZ>(), 0, 1);
+      vis.setCloudXYZ(pcl::PointCloud<pcl::PointXYZ>(), 0, 2);
+    }
 
-  {
-    int fi = neg_vec[qi][0];
-    const auto scan_fn = benchmark_dir / dbase_catalog[di][fi].path;
-    const auto scan = readCloudXYZ64(scan_fn.string());
-    const auto row = 0;
-    const auto col = 2;
-    spdlog::info("read scan from {} | n_points: {}", scan_fn.string(), scan.size());
-    vis.setCloudXYZ(scan, row, col);
-  }
-  {
-    int fi = neg_vec[qi][1];
-    const auto scan_fn = benchmark_dir / dbase_catalog[di][fi].path;
-    const auto scan = readCloudXYZ64(scan_fn.string());
-    const auto row = 1;
-    const auto col = 0;
-    spdlog::info("read scan from {} | n_points: {}", scan_fn.string(), scan.size());
-    vis.setCloudXYZ(scan, row, col);
-  }
-  {
-    int fi = neg_vec[qi][2];
-    const auto scan_fn = benchmark_dir / dbase_catalog[di][fi].path;
-    const auto scan = readCloudXYZ64(scan_fn.string());
-    const auto row = 1;
-    const auto col = 1;
-    spdlog::info("read scan from {} | n_points: {}", scan_fn.string(), scan.size());
-    vis.setCloudXYZ(scan, row, col);
-  }
-  {
-    int fi = neg_vec[qi][3];
-    const auto scan_fn = benchmark_dir / dbase_catalog[di][fi].path;
-    const auto scan = readCloudXYZ64(scan_fn.string());
-    const auto row = 1;
-    const auto col = 2;
-    spdlog::info("read scan from {} | n_points: {}", scan_fn.string(), scan.size());
-    vis.setCloudXYZ(scan, row, col);
-  }
+    if (state_vec[qi] == "None")
+    {
+      spdlog::info("[Q-{:04d}] No answer", qi);
+    }
+    else if (state_vec[qi] == "Find")
+    {
+      spdlog::info("[Q-{:04d}] T-{:-4d}", qi, pos_vec[qi]);
+      { /*  Register Positive Cloud */
+        const auto scan_fn = benchmark_dir / sub_dbase_catalog[pos_vec[qi]].path;
+        const auto scan = readCloudXYZ64(scan_fn.string());
+        vis.setCloudXYZ(scan, 1, 1);
+      }
+      if (!neg_vec[qi].empty())
+      { /*  Register Negative Clouds */
+        for (size_t nj = ni; nj < neg_vec[qi].size(); nj++)
+        {
+          const auto scan_fn = benchmark_dir / sub_dbase_catalog[neg_vec[qi][nj]].path;
+          const auto scan = readCloudXYZ64(scan_fn.string());
+          const int col = static_cast<int>(nj - ni);
+          vis.setCloudXYZ(scan, 0, col);
+          if (col >= 2) { break; }
+        }
+      }
+    }
+    else if (state_vec[qi] == "Fail")
+    {
+      vis.setCloudXYZ(pcl::PointCloud<pcl::PointXYZ>(), 1, 1);
+      spdlog::info("[Q-{:04d}] Fail", qi);
+      if (!neg_vec[qi].empty())
+      { /*  Register Negative Clouds */
+        for (size_t nj = ni; nj < neg_vec[qi].size(); nj++)
+        {
+          const auto scan_fn = benchmark_dir / sub_dbase_catalog[neg_vec[qi][nj]].path;
+          const auto scan = readCloudXYZ64(scan_fn.string());
+          const int col = static_cast<int>(nj - ni);
+          vis.setCloudXYZ(scan, 0, col);
+          if (col >= 2) { break; }
+        }
+      }
+    }
 
-  vis.run();
+    vis.run();
+
+    if (vis.getKeySym() == "Up")
+    {
+      qi = std::max(QI_MIN, qi-1);
+      ni = 0UL;
+    }
+    else if (vis.getKeySym() == "Down")
+    {
+      qi = std::min(QI_MAX, qi+1);
+      ni = 0UL;
+    }
+    else if (vis.getKeySym() == "Right")
+    {
+      ni = std::min(neg_vec[qi].size()-1UL, ni+1UL);
+    }
+    else if (vis.getKeySym() == "Left")
+    {
+      ni = std::max(0UL, ni-1UL);
+    }
+  }
 
   return EXIT_SUCCESS;
 }

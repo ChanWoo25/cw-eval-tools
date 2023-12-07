@@ -67,8 +67,8 @@ CloudVisualizer::CloudVisualizer(
           fmt::format("reference-v{}", vid),
           viewport_ids_[vid]);
         viewer_->setCameraPosition(
-          135.0, 45.0, 70.0,
-          -0.335434, -0.310508, 0.889421,
+          0.559224, -2.15324, 1.97632,
+          -0.274383, 0.614747, 0.739459,
           viewport_ids_[vid]);
       }
     }
@@ -80,51 +80,32 @@ CloudVisualizer::CloudVisualizer(
     viewer_->addText("Negative", 10, 10, "v5 text", viewport_ids_[5]);
   }
 
-  auto print_KeyCB = [&](
-    const pcl::visualization::KeyboardEvent& event) //
-  {
-    if ( (   event.getKeySym() == "a"
-          || event.getKeySym() == "A")
-        && event.keyDown())
-    {
-      // spdlog::info("Key: {}/{}, Pressed: {}",
-      //   event.getKeySym(),
-      //   event.getKeyCode(),
-      //   event.keyDown());
-      this->skip_flag = true;
-      this->key_sym_ = "a";
-    }
-    else if ( (   event.getKeySym() == "d"
-               || event.getKeySym() == "D")
-             && event.keyDown())
-    {
-      this->skip_flag = true;
-      this->key_sym_ = "d";
-    }
-    else if ( (   event.getKeySym() == "z"
-               || event.getKeySym() == "Z")
-             && event.keyDown())
-    {
-      this->skip_flag = true;
-      this->key_sym_ = "z";
-    }
-    else if ( (   event.getKeySym() == "c"
-               || event.getKeySym() == "C")
-             && event.keyDown())
-    {
-      this->skip_flag = true;
-      this->key_sym_ = "c";
-    }
-  };
-
   // auto vptr = viewer_.get();
   // viewer_->initCameraParameters ();
   viewer_->setShowFPS(true);
-  viewer_->registerKeyboardCallback(print_KeyCB);
+  viewer_->registerKeyboardCallback(
+    [&](const pcl::visualization::KeyboardEvent& event)
+    {
+      /* Uncomment when you want to check pressed key's sym & code */
+      // if (event.keyDown())
+      // {
+      //   spdlog::info("Key: {}/{}, Pressed: {}",
+      //     event.getKeySym(),
+      //     event.getKeyCode(),
+      //     event.keyDown());
+      // }
 
-  // auto cloud = pcl::PointCloud<pcl::PointXYZI>().makeShared();
-  // viewer_->addPointCloud<pcl::PointXYZI> (cloud, "sample cloud");
-  // viewer_->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "sample cloud");
+      if ( (   event.getKeySym() == "Right"
+            || event.getKeySym() == "Left"
+            || event.getKeySym() == "Up"
+            || event.getKeySym() == "Down")
+          && event.keyDown())
+      {
+        this->skip_flag = true;
+        this->key_sym_ = event.getKeySym();
+      }
+    }
+  );
 }
 
 void CloudVisualizer::run()
@@ -159,7 +140,7 @@ void CloudVisualizer::setCloudXYZ(
     = _cloud_id.empty()
       ? fmt::format("cloud-xyz-v{}", vid)
       : _cloud_id;
-  spdlog::info("cloud_id: {}", cloud_id);
+  // spdlog::info("cloud_id: {}", cloud_id);
 
   using pcl::visualization::PointCloudColorHandlerGenericField;
   if (cloud_ids_.find(cloud_id) == cloud_ids_.end())
@@ -172,7 +153,7 @@ void CloudVisualizer::setCloudXYZ(
     viewer_->addPointCloud<pcl::PointXYZ>(cloud.makeShared(), color_handler, cloud_id, viewport_ids_[vid]);
     viewer_->setPointCloudRenderingProperties(
       pcl::visualization::PCL_VISUALIZER_POINT_SIZE,
-      1, cloud_id, viewport_ids_[vid]);
+      2, cloud_id, viewport_ids_[vid]);
   }
   else
   {
