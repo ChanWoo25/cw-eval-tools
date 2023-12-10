@@ -67,7 +67,7 @@ private:
   std::string root_dir_;
   std::unordered_map<std::string, bool> cloud_ids_;
   bool skip_flag = false;
-  bool quit_flag = false;
+  // bool quit_flag = false;
   std::vector<int> viewport_ids_;
   int nrows_, ncols_;
   std::string key_sym_;

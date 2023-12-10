@@ -153,7 +153,7 @@ auto readScanList(
 {
   MetaVec meta_vec;
   CSVRow csv_row;
-  constexpr size_t N_COL = 4;
+  constexpr size_t N_COL = 3UL;
 
   double x_min = std::numeric_limits<double>::max();
   double x_max = std::numeric_limits<double>::min();
@@ -168,7 +168,7 @@ auto readScanList(
   while (true)    // Main
   {
     fin >> csv_row;
-    if (csv_row.size() != N_COL) { break; }
+    if (csv_row.size() < N_COL) { break; }
     ++total_line;
     const auto path = std::string(csv_row[0]);
     const auto northing = std::stof(std::string(csv_row[1]));
