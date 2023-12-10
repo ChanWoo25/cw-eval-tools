@@ -40,23 +40,33 @@ if(OpenCV_FOUND)
   # message(STATUS "Found OpenCV libraries is ${OpenCV_LIBS}")
 endif()
 
+## Find argparse
+find_package(argparse 3.0.0 REQUIRED)
+if (argparse_FOUND)
+  message(STATUS "Found argparse.")
+  message(STATUS "* Version: ${argparse_VERSION}\n")
+  # message(STATUS "* Usage: ")
+  # message(STATUS "* - find_package(argparse {VERSION} REQUIRED)")
+  # message(STATUS "* - target_include_directories(target argparse::argparse)")
+endif()
+
 find_package(PkgConfig REQUIRED)
 
-pkg_check_modules(GLOG REQUIRED libglog)
-if (GLOG_FOUND)
-  message(STATUS "Found glog.")
-  message(STATUS "* Version: ${GLOG_VERSION}")
-  message(STATUS "* Libs: ${GLOG_LIBRARIES}")
-  message(STATUS "* Ex: target_link_libraries(example PRIVATE glog::glog)")
-endif()
+# pkg_check_modules(GLOG REQUIRED libglog)
+# if (GLOG_FOUND)
+#   message(STATUS "Found glog.")
+#   message(STATUS "* Version: ${GLOG_VERSION}")
+#   message(STATUS "* Libs: ${GLOG_LIBRARIES}")
+#   message(STATUS "* Ex: target_link_libraries(example PRIVATE glog::glog)")
+# endif()
 
-pkg_check_modules(GFLAGS REQUIRED gflags)
-if (GFLAGS_FOUND)
-  message(STATUS "Found gflags.")
-  message(STATUS "GFLAGS_VERSION: ${GFLAGS_VERSION}")
-  message(STATUS "* Version: ${GFLAGS_VERSION}")
-  message(STATUS "* Libs: ${GFLAGS_LIBRARIES}")
-endif()
+# pkg_check_modules(GFLAGS REQUIRED gflags)
+# if (GFLAGS_FOUND)
+#   message(STATUS "Found gflags.")
+#   message(STATUS "GFLAGS_VERSION: ${GFLAGS_VERSION}")
+#   message(STATUS "* Version: ${GFLAGS_VERSION}")
+#   message(STATUS "* Libs: ${GFLAGS_LIBRARIES}")
+# endif()
 
 pkg_check_modules(EIGEN3 REQUIRED eigen3)
 if (EIGEN3_FOUND)
@@ -88,9 +98,9 @@ add_subdirectory(${${PACKAGE_NAME}_MODULE_PATH})
 
 ############################################
 # message(${${PACKAGE_NAME}_PATH}/build/module/cwcloud/libCWCLOUD.a)
-message(STATUS "SPDLOG_INCLUDE_PATH: ${SPDLOG_INCLUDE_PATH}")
-message(STATUS "SPDLOG_LIBS: ${SPDLOG_LIBS}")
-message(STATUS "PCL_LIBS: ${PCL_LIBS}")
+# message(STATUS "SPDLOG_INCLUDE_PATH: ${SPDLOG_INCLUDE_PATH}")
+# message(STATUS "SPDLOG_LIBS: ${SPDLOG_LIBS}")
+# message(STATUS "PCL_LIBS: ${PCL_LIBS}")
 
 add_executable(parse_point_cloud src/parse_point_cloud.cpp)
 target_link_libraries(parse_point_cloud
@@ -137,6 +147,33 @@ target_include_directories(explore_cs_campus PUBLIC
   ${EIGEN3_INCLUDE_DIRS}
 )
 target_compile_options(explore_cs_campus PRIVATE
+  -Wall -Wextra -Wpedantic -Werror
+)
+
+
+# fetch latest argparse
+# include(FetchContent)
+# FetchContent_Declare(
+#     argparse
+#     GIT_REPOSITORY https://github.com/p-ranav/argparse.git
+# )
+# FetchContent_MakeAvailable(argparse)
+
+add_executable(save_new_catalog src/save_new_catalog.cpp)
+target_link_libraries(save_new_catalog
+  CWCLOUD
+  ${SPDLOG_LIBS}
+  "${PCL_LIBS}"
+  argparse::argparse
+)
+target_include_directories(save_new_catalog PUBLIC
+  ${${PACKAGE_NAME}_INCLUDE_PATH}
+  ${SPDLOG_INCLUDE_PATH}
+  ${PCL_INCLUDE_PATH}
+  ${EIGEN3_INCLUDE_DIRS}
+  ${ARGPARSE_INCLUDE_DIRS}
+)
+target_compile_options(save_new_catalog PRIVATE
   -Wall -Wextra -Wpedantic -Werror
 )
 
