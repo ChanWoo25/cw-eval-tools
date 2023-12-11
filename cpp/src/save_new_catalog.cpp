@@ -22,7 +22,6 @@
 #include <pcl/filters/extract_indices.h>
 #include <pcl/segmentation/sac_segmentation.h>
 #include <argparse/argparse.hpp>
-#include <flann/flann.hpp>
 
 #include <fstream>
 #include <string>

@@ -10,6 +10,7 @@
 #include <pcl/visualization/point_cloud_color_handlers.h>
 #include <spdlog/fmt/bundled/format.h>
 #include <spdlog/spdlog.h>
+#include <string>
 
 namespace cwcloud {
 
@@ -24,6 +25,8 @@ CloudVisualizer::CloudVisualizer(
   root_dir_ = root_dir;
   viewer_ = std::make_shared<pcl::visualization::PCLVisualizer>();
   viewport_ids_.resize(nrows * ncols);
+  const double xint = 1.0 / static_cast<double>(ncols);
+  const double yint = 1.0 / static_cast<double>(nrows);
   if (nrows == 1 && ncols == 1)
   {
     viewer_->createViewPort(0.0, 0.0, 1.0, 1.0, viewport_ids_[0]);
@@ -36,21 +39,29 @@ CloudVisualizer::CloudVisualizer(
   }
   else if (nrows == 1 && ncols == 2)
   {
-    viewer_->createViewPort(0.0, 0.0, 0.5, 1.0, viewport_ids_[0]);
-    viewer_->setBackgroundColor (0.0, 0.0, 0.0, viewport_ids_[0]);
-    viewer_->addText("Radius: 0.01", 10, 10, "v1 text", viewport_ids_[0]);
-    viewer_->addCoordinateSystem (1.0, "reference", viewport_ids_[0]);
-    viewer_->setCameraPosition(135.0, 45.0, 70.0, -0.335434, -0.310508, 0.889421, viewport_ids_[0]);
-    // pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb(cloud);
-    // viewer_->addPointCloud<pcl::PointXYZRGB> (cloud, rgb, "sample cloud1", viewport_ids_[0]);
-
-    viewer_->createViewPort(0.5, 0.0, 1.0, 1.0, viewport_ids_[1]);
-    viewer_->setBackgroundColor (0.0, 0.0, 0.0, viewport_ids_[1]);
-    viewer_->addText("Radius: 0.1", 10, 10, "v2 text", viewport_ids_[1]);
-    viewer_->addCoordinateSystem (1.0, "reference", viewport_ids_[1]);
-    viewer_->setCameraPosition(135.0, 45.0, 70.0, -0.335434, -0.310508, 0.889421, viewport_ids_[1]);
-    // pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZRGB> single_color(cloud, 0, 255, 0);
-    // viewer_->addPointCloud<pcl::PointXYZRGB> (cloud, single_color, "sample cloud2", viewport_ids_[1]);
+    for (int row = 0; row < nrows; ++row)
+    {
+      for (int col = 0; col < ncols; ++col)
+      {
+        const int vid = row * ncols + col;
+        const double xmin = xint * static_cast<double>(col);
+        const double ymin = yint * static_cast<double>(row);
+        const double xmax = std::min(1.0, xint * static_cast<double>(col+1));
+        const double ymax = std::min(1.0, yint * static_cast<double>(row+1));
+        viewer_->createViewPort(xmin, ymin, xmax, ymax, viewport_ids_[vid]);
+        spdlog::info("viewport id {}: {}", vid, viewport_ids_[vid]);
+        viewer_->setBackgroundColor (0.0, 0.0, 0.0, viewport_ids_[vid]);
+        viewer_->addCoordinateSystem (0.05,
+          fmt::format("reference-v{}", vid),
+          viewport_ids_[vid]);
+        viewer_->setCameraPosition(
+          0.559224, -2.15324, 1.97632,
+          -0.274383, 0.614747, 0.739459,
+          viewport_ids_[vid]);
+      }
+    }
+    viewer_->addText("Query", 10, 10, 20, 1.0, 1.0, 1.0, "v0 text", viewport_ids_[0]);
+    viewer_->addText("Nearest", 10, 10, 20, 1.0, 1.0, 1.0, "v1 text", viewport_ids_[1]);
   }
   else if (nrows == 2 && ncols == 3)
   {
@@ -59,10 +70,10 @@ CloudVisualizer::CloudVisualizer(
       for (int col = 0; col < ncols; ++col)
       {
         const int vid = row * ncols + col;
-        const double xmin = 0.3334 * static_cast<double>(col);
-        const double ymin = 0.5 * static_cast<double>(row);
-        const double xmax = std::min(1.0, 0.3334 * static_cast<double>(col+1));
-        const double ymax = std::min(1.0, 0.5 * static_cast<double>(row+1));
+        const double xmin = xint * static_cast<double>(col);
+        const double ymin = yint * static_cast<double>(row);
+        const double xmax = std::min(1.0, xint * static_cast<double>(col+1));
+        const double ymax = std::min(1.0, yint * static_cast<double>(row+1));
         viewer_->createViewPort(xmin, ymin, xmax, ymax, viewport_ids_[vid]);
         spdlog::info("viewport id {}: {}", vid, viewport_ids_[vid]);
         viewer_->setBackgroundColor (0.0, 0.0, 0.0, viewport_ids_[vid]);
@@ -167,6 +178,29 @@ void CloudVisualizer::setCloudXYZ(
   }
 }
 
+
+void CloudVisualizer::setCloudXYZwithNum(
+  pcl::PointCloud<pcl::PointXYZ> cloud,
+  const int & nrow,
+  const int & ncol,
+  const double & num,
+  const std::string & _cloud_id)
+{
+  setCloudXYZ(cloud, nrow, ncol, _cloud_id);
+  std::string text = "Dist from Query: " + std::to_string(num);
+  const int vid = nrow * ncols_ + ncol;
+  const std::string text_id = _cloud_id + "-num";
+  static bool is_first_add = true;
+  if (is_first_add)
+  {
+    viewer_->addText(text, 10, 30, 20, 1.0, 1.0, 1.0, text_id, viewport_ids_[vid]);
+    is_first_add = false;
+  }
+  else
+  {
+    viewer_->updateText(text, 10, 30, 20, 1.0, 1.0, 1.0, text_id);
+  }
+}
 
 void CloudVisualizer::setCloud(
   pcl::PointCloud<pcl::PointXYZI> cloud,

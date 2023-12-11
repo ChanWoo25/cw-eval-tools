@@ -21,6 +21,7 @@
 #include <pcl/segmentation/sac_segmentation.h>
 
 #include <fstream>
+#include <sstream>
 #include <string>
 #include <vector>
 #include <algorithm>
@@ -31,6 +32,16 @@
 #include "cwcloud/CloudVisualizer.hpp"
 
 namespace fs = std::filesystem;
+
+class NearestMeta
+{
+public:
+  NearestMeta()=default;
+  ~NearestMeta()=default;
+  size_t size() const { return top_k_indices.size(); }
+  std::vector<size_t> top_k_indices;
+  std::vector<double> top_k_dists;
+};
 
 std::string strip(const std::string & str)
 {
@@ -148,7 +159,7 @@ public:
 using MetaVec = std::vector<MetaPerScan>;
 auto readScanList(
   const fs::path & list_fn,
-  const double & skip_len)
+  const double & skip_len=-1.0)
   ->MetaVec
 {
   MetaVec meta_vec;
@@ -202,6 +213,49 @@ auto readScanList(
   spdlog::info("total_line: {}", total_line);
   spdlog::info("skiped_line: {}", skiped_line);
   return meta_vec;
+}
+
+auto readNearestMetas(
+  const fs::path & data_fn)
+  ->std::vector<NearestMeta>
+{
+  std::vector<NearestMeta> nearest_metas;
+  std::ifstream fin(data_fn);
+  std::string line;
+  while (std::getline(fin, line))
+  {
+    line = strip(line);
+    if (line.empty()) { break; }
+
+    // static int i = 0;
+    // if (i++ % 1000 == 0) { spdlog::info("line size: {}", line.size()); }
+    std::istringstream iss(line);
+
+    std::string path;
+    double northing;
+    double easting;
+    int k;
+    iss >> path;
+    iss >> northing;
+    iss >> easting;
+    iss >> k;
+
+    NearestMeta nearest_meta;
+    size_t idx;
+    double dist;
+    for (int i = 0; i < k; ++i)
+    {
+      iss >> idx;
+      iss >> dist;
+      nearest_meta.top_k_indices.push_back(idx);
+      nearest_meta.top_k_dists.push_back(dist);
+    }
+    nearest_metas.push_back(nearest_meta);
+  }
+  fin.close();
+
+  spdlog::info("read size: {}", nearest_metas.size());
+  return nearest_metas;
 }
 
 auto readCloudXYZ64(
@@ -280,29 +334,97 @@ auto main(int argc, char * argv[]) -> int32_t
   const auto meta_list = readScanList(list_fn, skip_len);
 
   /* Initialize Visualizer */
-  cwcloud::CloudVisualizer vis("explore_cs_campus", 1, 1);
   const auto IDX_MIN = 0UL;
   const auto IDX_MAX = meta_list.size()-1UL;
   size_t idx = 0UL;
 
-  while (!vis.wasStopped())
+  if (type == "ground")
   {
-    { /*  Register Query Cloud  & Clean other grids */
+    cwcloud::CloudVisualizer vis("explore_cs_campus", 1, 2);
+    const auto aerial00_fn = umd_dir / "umcp_lidar5_cloud_6" / "umd_aerial_cloud_20m_100coverage_4096.csv";
+    const auto aerial01_fn = umd_dir / "umcp_lidar5_cloud_7" / "umd_aerial_cloud_20m_100coverage_4096.csv";
+    const auto nearest00_fn = cs_campus_dir / "catalog-nearest-aerial" / fmt::format("ground{:02d}-aerial00-top_4-nearest.txt", seq_num-1);
+    const auto nearest01_fn = cs_campus_dir / "catalog-nearest-aerial" / fmt::format("ground{:02d}-aerial01-top_4-nearest.txt", seq_num-1);
+    spdlog::info("Read \"{}\" | {}", aerial00_fn.string(), fs::exists(aerial00_fn));
+    spdlog::info("Read \"{}\" | {}", aerial01_fn.string(), fs::exists(aerial01_fn));
+    const auto aerial00_list = readScanList(aerial00_fn);
+    const auto aerial01_list = readScanList(aerial01_fn);
+    spdlog::info("Read \"{}\" | {}", nearest00_fn.string(), fs::exists(nearest00_fn));
+    spdlog::info("Read \"{}\" | {}", nearest01_fn.string(), fs::exists(nearest01_fn));
+    const auto nearest00_list = readNearestMetas(nearest00_fn);
+    const auto nearest01_list = readNearestMetas(nearest01_fn);
+
+    while (!vis.wasStopped())
+    {
       const auto scan_fn = benchmark_dir / meta_list[idx].path;
       const auto scan = readCloudXYZ64(scan_fn.string());
-      // spdlog::info("Scan path '{}' | n_points: {}", scan_fn.string(), scan.size());
       spdlog::info(
         "[{:04d}-Scan] north({:.4f}), east({:.4f})",
         idx,
         meta_list[idx].northing,
         meta_list[idx].easting);
       vis.setCloudXYZ(scan, 0, 0);
+
+      /* choose nearest */
+      const auto & near00 = nearest00_list[idx];
+      const auto & near01 = nearest01_list[idx];
+      int aseq = 0;
+      size_t nn_idx;
+      double nn_dist = std::numeric_limits<double>::max();
+      for (size_t i = 0UL; i < near00.size(); ++i)
+      {
+        if (near00.top_k_dists[i] < nn_dist)
+        {
+          aseq = 0;
+          nn_idx = near00.top_k_indices[i];
+          nn_dist = near00.top_k_dists[i];
+        }
+      }
+      for (size_t i = 0UL; i < near01.size(); ++i)
+      {
+        if (near01.top_k_dists[i] < nn_dist)
+        {
+          aseq = 1;
+          nn_idx = near01.top_k_indices[i];
+          nn_dist = near01.top_k_dists[i];
+        }
+      }
+      const auto nn_scan_fn
+        = (aseq == 0)
+        ? (benchmark_dir / aerial00_list[nn_idx].path)
+        : (benchmark_dir / aerial01_list[nn_idx].path);
+      const auto nn_scan = readCloudXYZ64(nn_scan_fn.string());
+      spdlog::info(
+        "nn-scan: {} / dist: {:.6f}", nn_scan_fn.string(), nn_dist);
+      vis.setCloudXYZwithNum(nn_scan, 0, 1, nn_dist);
+      vis.run();
+
+      if (vis.getKeySym() == "Right" && idx != IDX_MAX) { ++idx; }
+      else if (vis.getKeySym() == "Left" && idx != IDX_MIN) { --idx; }
     }
+  }
+  else
+  {
+    cwcloud::CloudVisualizer vis("explore_cs_campus", 1, 1);
+    while (!vis.wasStopped())
+    {
+      { /*  Register Query Cloud  & Clean other grids */
+        const auto scan_fn = benchmark_dir / meta_list[idx].path;
+        const auto scan = readCloudXYZ64(scan_fn.string());
+        // spdlog::info("Scan path '{}' | n_points: {}", scan_fn.string(), scan.size());
+        spdlog::info(
+          "[{:04d}-Scan] north({:.4f}), east({:.4f})",
+          idx,
+          meta_list[idx].northing,
+          meta_list[idx].easting);
+        vis.setCloudXYZ(scan, 0, 0);
+      }
 
-    vis.run();
+      vis.run();
 
-    if (vis.getKeySym() == "Right" && idx != IDX_MAX) { ++idx; }
-    else if (vis.getKeySym() == "Left" && idx != IDX_MIN) { --idx; }
+      if (vis.getKeySym() == "Right" && idx != IDX_MAX) { ++idx; }
+      else if (vis.getKeySym() == "Left" && idx != IDX_MIN) { --idx; }
+    }
   }
 
   return EXIT_SUCCESS;
