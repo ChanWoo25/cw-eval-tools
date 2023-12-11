@@ -1,4 +1,6 @@
+#include <cfloat>
 #include <cmath>
+#include <cstddef>
 #include <cstdlib>
 #include <limits>
 #include <memory>
@@ -20,6 +22,7 @@
 #include <pcl/filters/extract_indices.h>
 #include <pcl/segmentation/sac_segmentation.h>
 #include <argparse/argparse.hpp>
+#include <flann/flann.hpp>
 
 #include <fstream>
 #include <string>
@@ -195,63 +198,90 @@ public:
   double easting;
 };
 
-using MetaVec = std::vector<MetaPerScan>;
-auto readScanList(
-  const fs::path & list_fn,
-  const double & skip_len)
-  ->MetaVec
+// Define the point structure
+struct Point {
+  double x;
+  double y;
+};
+
+// Euclidean distance function
+double meta_dist(
+  const MetaPerScan & p1,
+  const MetaPerScan & p2) {
+  return sqrt(  pow(p1.northing - p2.northing, 2)
+              + pow(p1.easting  - p2.easting , 2));
+}
+
+/* Check that the (i)-th and (i+1)-th elements of aerial_meta have the same coordinates. */
+void check_aerial_metas(const std::vector<MetaPerScan> & aerial_metas)
 {
-  MetaVec meta_vec;
-  CSVRow csv_row;
-  constexpr size_t N_COL = 3UL;
-
-  double x_min = std::numeric_limits<double>::max();
-  double x_max = std::numeric_limits<double>::min();
-  double y_min = std::numeric_limits<double>::max();
-  double y_max = std::numeric_limits<double>::min();
-  double total_len = 0.0;
-  size_t total_line = 0UL;
-  size_t skiped_line = 0UL;
-
-  std::ifstream fin(list_fn);
-  fin >> csv_row; // Throw header
-  while (true)    // Main
+  for (size_t i = 0; i < aerial_metas.size(); i += 2)
   {
-    fin >> csv_row;
-    if (csv_row.size() < N_COL) { break; }
-    ++total_line;
-    const auto path = std::string(csv_row[0]);
-    const auto northing = std::stof(std::string(csv_row[1]));
-    const auto easting  = std::stof(std::string(csv_row[2]));
-
-    if (skip_len > 0.0 && !meta_vec.empty())
+    const auto n_diff = std::abs(aerial_metas[i].northing - aerial_metas[i+1].northing);
+    const auto e_diff = std::abs(aerial_metas[i].easting - aerial_metas[i+1].easting);
+    if (n_diff > DBL_EPSILON || e_diff > DBL_EPSILON)
     {
-      const auto dist2back = std::sqrt(
-          std::pow(meta_vec.back().northing - northing, 2.0)
-        + std::pow(meta_vec.back().easting  - easting, 2.0));
-      if (dist2back < skip_len) { continue; }
+      spdlog::warn("Diff with my assumption.");
+      spdlog::warn("[{:04d}] {:10.4f}, {:10.4f}", i, aerial_metas[i].northing, aerial_metas[i].easting);
+      spdlog::warn("[{:04d}] {:10.4f}, {:10.4f}", i, aerial_metas[i+1].northing, aerial_metas[i+1].easting);
     }
-
-    x_min = (northing < x_min) ? (northing) : (x_min);
-    x_max = (northing > x_max) ? (northing) : (x_max);
-    y_min = (easting < y_min) ? (easting) : (y_min);
-    y_max = (easting > y_max) ? (easting) : (y_max);
-    if (!meta_vec.empty())
-    {
-      total_len += std::sqrt(
-          std::pow(meta_vec.back().northing - northing, 2.0)
-        + std::pow(meta_vec.back().easting  - easting, 2.0));
-    }
-    meta_vec.emplace_back(path, northing, easting);
-    ++skiped_line;
   }
-  fin.close();
-  spdlog::info("x range: {:.3f} ~ {:.3f}", x_min, x_max);
-  spdlog::info("y range: {:.3f} ~ {:.3f}", y_min, y_max);
-  spdlog::info("total_length: {:.3f}", total_len);
-  spdlog::info("total_line: {}", total_line);
-  spdlog::info("skiped_line: {}", skiped_line);
-  return meta_vec;
+}
+
+auto find_top_k_neighbors(
+  const MetaPerScan & ground,
+  const std::vector<MetaPerScan> & aerial_metas,
+  const int k)
+  -> std::tuple<std::vector<size_t>, std::vector<double>>
+{
+  if (k < 1) { spdlog::error("k({}) < 1 not allowed.", k); exit(1); }
+
+  std::vector<size_t> top_k_indices(k, 0UL);
+  std::vector<double> top_k_dists  (k, std::numeric_limits<double>::max());
+  for (size_t i = 0UL; i < aerial_metas.size(); i += 2UL)
+  {
+    const auto dist = meta_dist(ground, aerial_metas[i]);
+
+    if (dist < top_k_dists[0])
+    {
+      for (int j = 0; j < k-1; ++j)
+      {
+        top_k_dists[k-1-j]   = top_k_dists[k-1-(j+1)];
+        top_k_indices[k-1-j] = top_k_indices[k-1-(j+1)];
+      }
+      top_k_indices[0] = i;
+      top_k_dists[0] = dist;
+    }
+  }
+  return std::make_tuple(top_k_indices, top_k_dists);
+}
+
+void find_n_save_top_k_neighbors(
+  const fs::path & save_fn,
+  const std::vector<MetaPerScan> & ground_metas,
+  const std::vector<MetaPerScan> & aerial_metas,
+  const int k)
+{
+  spdlog::info ("save_fn: {}, top_k: {}", save_fn.string(), k);
+  std::ofstream f_out(save_fn);
+  for (size_t i = 0; i < ground_metas.size(); ++i)
+  {
+    const auto & meta = ground_metas[i];
+    const auto [top_k_indices, top_k_dists]
+      = find_top_k_neighbors(meta, aerial_metas, k);
+
+    /* Format: {path} {northing} {easting} {k} {1-th index} {1-th dist} ... {k-th index} {k-th dist} */
+    std::string line = fmt::format(
+      "{} {:.6f} {:.6f} {}",
+      meta.path, meta.northing, meta.easting, k);
+    for (int j = 0; j < k; j++)
+    {
+      line = line + fmt::format(" {} {}", top_k_indices[j], top_k_dists[j]);
+    }
+    if (i != 0) { line = "\n" + line; }
+    f_out << line;
+  }
+  f_out.close();
 }
 
 auto readCloudXYZ64(
@@ -284,6 +314,12 @@ auto readCloudXYZ64(
   }
   return cloud;
 }
+
+using MetaVec = std::vector<MetaPerScan>;
+auto readScanList(
+  const fs::path & list_fn,
+  const double & skip_len=-1.0)
+  ->MetaVec;
 
 void main_create_ver2(const double & skip_len);
 
@@ -330,6 +366,7 @@ auto main(int argc, char * argv[]) -> int32_t
   return EXIT_SUCCESS;
 }
 
+
 void main_nearest()
 {
   spdlog::info(" ==================");
@@ -339,12 +376,58 @@ void main_nearest()
   const auto catalog_dir
     = cs_campus_dir / "catalog-nearest-aerial";
   fs::create_directory(catalog_dir);
-  spdlog::info("Save to \"{}\" | exists: {}",
-    catalog_dir.string(),
-    fs::exists(catalog_dir));
-  if (!fs::exists(catalog_dir)) { exit(EXIT_FAILURE); }
+  spdlog::info("Save to \"{}\"", catalog_dir.string());
+  if (!fs::exists(catalog_dir))
+  {
+    spdlog::error("==> Directory doesn't exist!!");
+    exit(EXIT_FAILURE);
+  }
+  else
+  {
+    spdlog::info("==> Dir [ok]");
+  }
 
-  
+  std::array<MetaVec, 2>  aerial_vec;
+  std::array<MetaVec, 19> ground_vec;
+
+  /* Aerial */
+  for (int i = 0; i < 2; i++)
+  {
+    const auto & aerial_seq = cfg.aerial_sequences[i];
+    const auto list_fn
+      = umd_dir / aerial_seq / "umd_aerial_cloud_20m_100coverage_4096.csv";
+    spdlog::info("Read {}", list_fn.string());
+    aerial_vec[i] = readScanList(list_fn);
+    check_aerial_metas(aerial_vec[i]);
+  }
+
+  /* Ground */
+  for (int i = 0; i < 19; i++)
+  {
+    const auto & groumd_seq = cfg.ground_sequences[i];
+    const auto list_fn
+      = umd_dir / groumd_seq / "umd_aerial_cloud_20m_100coverage_4096.csv";
+    spdlog::info("Read {}", list_fn.string());
+    ground_vec[i] = readScanList(list_fn);
+  }
+
+  for (size_t i = 0; i < aerial_vec.size(); ++i)
+  {
+    for (size_t j = 0 ; j < ground_vec.size(); ++j)
+    {
+      constexpr int top_k = 4;
+      const auto save_fn
+        = catalog_dir
+          / fmt::format(
+              "ground{:02d}-aerial{:02d}-top_{}-nearest.txt",
+              j, i, top_k);
+      find_n_save_top_k_neighbors(
+        save_fn,
+        ground_vec[j],
+        aerial_vec[i],
+        top_k);
+    }
+  }
 }
 
 void main_create_ver2(const double & skip_len)
@@ -501,4 +584,64 @@ void main_create_ver2(const double & skip_len)
   //   if (vis.getKeySym() == "Right" && idx != IDX_MAX) { ++idx; }
   //   else if (vis.getKeySym() == "Left" && idx != IDX_MIN) { --idx; }
   // }
+}
+
+
+using MetaVec = std::vector<MetaPerScan>;
+auto readScanList(
+  const fs::path & list_fn,
+  const double & skip_len)
+  ->MetaVec
+{
+  MetaVec meta_vec;
+  CSVRow csv_row;
+  constexpr size_t N_COL = 3UL;
+
+  double x_min = std::numeric_limits<double>::max();
+  double x_max = std::numeric_limits<double>::min();
+  double y_min = std::numeric_limits<double>::max();
+  double y_max = std::numeric_limits<double>::min();
+  double total_len = 0.0;
+  size_t total_line = 0UL;
+  size_t skiped_line = 0UL;
+
+  std::ifstream fin(list_fn);
+  fin >> csv_row; // Throw header
+  while (true)    // Main
+  {
+    fin >> csv_row;
+    if (csv_row.size() < N_COL) { break; }
+    ++total_line;
+    const auto path = std::string(csv_row[0]);
+    const auto northing = std::stod(std::string(csv_row[1]));
+    const auto easting  = std::stod(std::string(csv_row[2]));
+
+    if (skip_len > 0.0 && !meta_vec.empty())
+    {
+      const auto dist2back = std::sqrt(
+          std::pow(meta_vec.back().northing - northing, 2.0)
+        + std::pow(meta_vec.back().easting  - easting, 2.0));
+      if (dist2back < skip_len) { continue; }
+    }
+
+    x_min = (northing < x_min) ? (northing) : (x_min);
+    x_max = (northing > x_max) ? (northing) : (x_max);
+    y_min = (easting < y_min) ? (easting) : (y_min);
+    y_max = (easting > y_max) ? (easting) : (y_max);
+    if (!meta_vec.empty())
+    {
+      total_len += std::sqrt(
+          std::pow(meta_vec.back().northing - northing, 2.0)
+        + std::pow(meta_vec.back().easting  - easting, 2.0));
+    }
+    meta_vec.emplace_back(path, northing, easting);
+    ++skiped_line;
+  }
+  fin.close();
+  spdlog::info("x range: {:.3f} ~ {:.3f}", x_min, x_max);
+  spdlog::info("y range: {:.3f} ~ {:.3f}", y_min, y_max);
+  spdlog::info("total_length: {:.3f}", total_len);
+  spdlog::info("total_line: {}", total_line);
+  spdlog::info("skiped_line: {}", skiped_line);
+  return meta_vec;
 }

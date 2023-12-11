@@ -76,6 +76,18 @@ if (EIGEN3_FOUND)
   message(STATUS "* Tip: Just target_include_directories(example $<EIGEN3_INCLUDE_DIRS> )")
 endif()
 
+pkg_check_modules(FLANN REQUIRED flann)
+if (FLANN_FOUND)
+  message(STATUS "Found flann.")
+  message(STATUS "* Version: ${FLANN_VERSION}")
+  message(STATUS "* Header: ${FLANN_INCLUDE_DIRS}")
+  message(STATUS "* Libs: ${FLANN_LIBRARIES}")
+  message(STATUS "* Tip: Just target_include_directories(example $<FLANN_INCLUDE_DIRS> )")
+endif()
+#     add_executable(foo foo.cc)
+#     target_link_libraries(foo FLANN::FLANN)
+
+
 include("cmake/find_spdlog.cmake")
 include("cmake/find_pcl.cmake")
 
@@ -165,6 +177,7 @@ target_link_libraries(save_new_catalog
   ${SPDLOG_LIBS}
   "${PCL_LIBS}"
   argparse::argparse
+  FLANN::FLANN
 )
 target_include_directories(save_new_catalog PUBLIC
   ${${PACKAGE_NAME}_INCLUDE_PATH}
