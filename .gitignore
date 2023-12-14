@@ -44,8 +44,9 @@ build/**
 *.out
 *.app
 
-# Clangd
+# Clangds
 .clangd
 
 __pycache__
+*.pyc
 tmp
