@@ -34,6 +34,9 @@ public:
     const std::string & root_dir,
     const int nrows=1,
     const int ncols=1);
+  CloudVisualizer(
+    const std::string & root_dir,
+    const std::string & mode);
   CloudVisualizer()=delete;
   ~CloudVisualizer() {}
 
@@ -44,6 +47,12 @@ public:
 
   void setCloudXYZ(
     pcl::PointCloud<pcl::PointXYZ> cloud,
+    const int & nrow,
+    const int & ncol,
+    const std::string & _cloud_id="");
+
+  void setCloudXYZI(
+    pcl::PointCloud<pcl::PointXYZI> cloud,
     const int & nrow,
     const int & ncol,
     const std::string & _cloud_id="");
@@ -78,6 +87,7 @@ private:
   std::vector<int> viewport_ids_;
   int nrows_, ncols_;
   std::string key_sym_;
+  std::string window_name_;
 };
 
 } // namespace cwcloud

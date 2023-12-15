@@ -13,7 +13,6 @@
 #include <spdlog/fmt/bundled/format.h>
 #include <spdlog/spdlog.h>
 
-
 #include <Eigen/Dense>
 #include <Eigen/Geometry>
 #include <pcl/io/pcd_io.h>

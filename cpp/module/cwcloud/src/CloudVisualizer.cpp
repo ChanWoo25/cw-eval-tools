@@ -122,6 +122,63 @@ CloudVisualizer::CloudVisualizer(
   );
 }
 
+CloudVisualizer::CloudVisualizer(
+  const std::string & window_name,
+  const std::string & mode)
+  : window_name_(window_name)
+{
+  viewer_ = std::make_shared<pcl::visualization::PCLVisualizer>();
+  if (mode == "attention")
+  {
+    viewport_ids_.resize(4);
+    nrows_ = 2;
+    ncols_ = 2;
+    const double xint = 1.0 / static_cast<double>(ncols_);
+    const double yint = 1.0 / static_cast<double>(nrows_);
+    for (int row = 0; row < nrows_; ++row)
+    {
+      for (int col = 0; col < ncols_; ++col)
+      {
+        const int vid = row * ncols_ + col;
+        const double xmin = xint * static_cast<double>(col);
+        const double ymin = yint * static_cast<double>(row);
+        const double xmax = std::min(1.0, xint * static_cast<double>(col+1));
+        const double ymax = std::min(1.0, yint * static_cast<double>(row+1));
+        viewer_->createViewPort(xmin, ymin, xmax, ymax, viewport_ids_[vid]);
+        // spdlog::info("viewport id {}: {}", vid, viewport_ids_[vid]);
+        viewer_->setBackgroundColor (0.0, 0.0, 0.0, viewport_ids_[vid]);
+        viewer_->addCoordinateSystem (0.05,
+          fmt::format("reference-v{}", vid),
+          viewport_ids_[vid]);
+        viewer_->setCameraPosition(
+          0.559224, -2.15324, 1.97632,
+          -0.274383, 0.614747, 0.739459,
+          viewport_ids_[vid]);
+      }
+    }
+    viewer_->addText("Quantized"   , 10, 10, "v0 text", viewport_ids_[0]);
+    viewer_->addText("After Conv", 10, 10, "v1 text", viewport_ids_[1]);
+    viewer_->addText("After Diff", 10, 10, "v2 text", viewport_ids_[2]);
+    viewer_->addText("AFter Fuse", 10, 10, "v3 text", viewport_ids_[3]);
+  }
+
+  viewer_->setShowFPS(true);
+  viewer_->registerKeyboardCallback(
+    [&](const pcl::visualization::KeyboardEvent& event)
+    {
+      if ( (   event.getKeySym() == "Right"
+            || event.getKeySym() == "Left"
+            || event.getKeySym() == "Up"
+            || event.getKeySym() == "Down")
+          && event.keyDown())
+      {
+        this->skip_flag = true;
+        this->key_sym_ = event.getKeySym();
+      }
+    }
+  );
+}
+
 void CloudVisualizer::run()
 {
   while (!viewer_->wasStopped())
@@ -178,6 +235,47 @@ void CloudVisualizer::setCloudXYZ(
   }
 }
 
+void CloudVisualizer::setCloudXYZI(
+  pcl::PointCloud<pcl::PointXYZI> cloud,
+  const int & nrow,
+  const int & ncol,
+  const std::string & _cloud_id)
+{
+  if (   !(0 <= nrow && nrow < nrows_)
+      || !(0 <= ncol && ncol < ncols_))
+  {
+    spdlog::error("Out of range {}x{} | nrows:{}, ncols{}", nrow, ncol, nrows_, ncols_);
+  }
+
+  const int vid = nrow * ncols_ + ncol;
+
+  const std::string cloud_id
+    = _cloud_id.empty()
+      ? fmt::format("cloud-xyz-v{}", vid)
+      : _cloud_id;
+  // spdlog::info("cloud_id: {}", cloud_id);
+
+  using pcl::visualization::PointCloudColorHandlerGenericField;
+  if (cloud_ids_.find(cloud_id) == cloud_ids_.end())
+  {
+    cloud_ids_[cloud_id] = true;
+    auto color_handler
+      = PointCloudColorHandlerGenericField<pcl::PointXYZI>(
+          cloud.makeShared(), "instensity");
+    // pcl::visualization::PointCloudColorHandlerGenericField<pcl::PointXYZI> color_handler(cloud, "z");
+    viewer_->addPointCloud<pcl::PointXYZI>(cloud.makeShared(), color_handler, cloud_id, viewport_ids_[vid]);
+    viewer_->setPointCloudRenderingProperties(
+      pcl::visualization::PCL_VISUALIZER_POINT_SIZE,
+      2, cloud_id, viewport_ids_[vid]);
+  }
+  else
+  {
+    auto color_handler
+      = PointCloudColorHandlerGenericField<pcl::PointXYZI>(
+          cloud.makeShared(), "instensity");
+    viewer_->updatePointCloud<pcl::PointXYZI>(cloud.makeShared(), color_handler, cloud_id);
+  }
+}
 
 void CloudVisualizer::setCloudXYZwithNum(
   pcl::PointCloud<pcl::PointXYZ> cloud,

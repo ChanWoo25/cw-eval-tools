@@ -135,12 +135,14 @@ target_link_libraries(debug_pcpr
   CWCLOUD
   ${SPDLOG_LIBS}
   "${PCL_LIBS}"
+  argparse::argparse
 )
 target_include_directories(debug_pcpr PUBLIC
   ${${PACKAGE_NAME}_INCLUDE_PATH}
   ${SPDLOG_INCLUDE_PATH}
   ${PCL_INCLUDE_PATH}
   ${EIGEN3_INCLUDE_DIRS}
+  ${ARGPARSE_INCLUDE_DIRS}
 )
 target_compile_options(debug_pcpr PRIVATE
   -Wall -Wextra -Wpedantic -Werror
@@ -177,7 +179,6 @@ target_link_libraries(save_new_catalog
   ${SPDLOG_LIBS}
   "${PCL_LIBS}"
   argparse::argparse
-  FLANN::FLANN
 )
 target_include_directories(save_new_catalog PUBLIC
   ${${PACKAGE_NAME}_INCLUDE_PATH}

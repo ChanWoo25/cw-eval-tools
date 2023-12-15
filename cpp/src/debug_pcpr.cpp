@@ -12,12 +12,12 @@
 
 #include <Eigen/Dense>
 #include <Eigen/Geometry>
-// #include <opencv2/opencv.hpp>
 #include <pcl/io/pcd_io.h>
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
 #include <pcl/filters/extract_indices.h>
 #include <pcl/segmentation/sac_segmentation.h>
+#include <argparse/argparse.hpp>
 
 #include <fstream>
 #include <string>
@@ -26,6 +26,7 @@
 #include <tuple>
 #include <filesystem>
 #include <random>
+#include <glob.h>
 
 #include "cwcloud/CloudVisualizer.hpp"
 
@@ -447,13 +448,135 @@ auto readCloudXYZ64(
   return cloud;
 }
 
+auto readAttentionRawPts(
+  const fs::path & txt_fn,
+  const double & qsize)
+  ->pcl::PointCloud<pcl::PointXYZ>
+{
+  pcl::PointCloud<pcl::PointXYZ> cloud;
+  std::ifstream f_txt(txt_fn);
+  std::string line;
+  int n_lines = 0;
+  while (std::getline(f_txt, line))
+  {
+    if (line.empty()) { break; }
+    ++n_lines;
+    std::istringstream iss(line);
+    double px, py, pz;
+    iss >> px >> py >> pz;
+    px *= qsize;
+    py *= qsize;
+    pz *= qsize;
+    cloud.emplace_back(px, py, pz);
+  }
+  f_txt.close();
+  return cloud;
+}
+
+auto readAttentionPts(
+  const fs::path & txt_fn,
+  const double & qsize)
+  ->pcl::PointCloud<pcl::PointXYZI>
+{
+  pcl::PointCloud<pcl::PointXYZI> cloud;
+  std::ifstream f_txt(txt_fn);
+  std::string line;
+  int n_lines = 0;
+  while (std::getline(f_txt, line))
+  {
+    if (line.empty()) { break; }
+    ++n_lines;
+    std::istringstream iss(line);
+    double px, py, pz, intensity;
+    iss >> px >> py >> pz >> intensity;
+    px *= qsize;
+    py *= qsize;
+    pz *= qsize;
+    cloud.emplace_back(px, py, pz, intensity);
+  }
+  f_txt.close();
+  return cloud;
+}
+
+void main_base(
+  const int & dbase_index);
+
+void main_attention(
+  const std::string & atype,
+  const std::string & model,
+  const std::string & exid,
+  const int & scan_index=0,
+  const int & dbase_index=-1);
+
 auto main(int argc, char * argv[]) -> int32_t
 {
-  if (argc >= 2)
+  argparse::ArgumentParser program("debug_pcpr");
+
+  /// debug_pcpr base dbase_index
+  argparse::ArgumentParser base_command("base");
+  base_command.add_description("basic comparison");
+  base_command.add_argument("dbase_index")
+    .help("Database index which is queried")
+    .scan<'i', int>();
+
+  /// debug_pcpr attention atype("query"|"dbase") [dbase_index]
+  argparse::ArgumentParser attention_command("attention");
+  attention_command.add_description("basic comparison");
+  attention_command.add_argument("atype")
+    .help("query or dbase");
+  attention_command.add_argument("--model")
+    .default_value("campus_ours");
+  attention_command.add_argument("--exid")
+    .default_value("2023-12-14_17-28-35");
+  attention_command.add_argument("--dbase_index")
+    .help("Database index which is queried")
+    .scan<'i', int>();
+  attention_command.add_argument("--scan_index")
+    .required()
+    .scan<'i', int>();
+
+  program.add_subparser(base_command);
+  program.add_subparser(attention_command);
+
+  try {
+    program.parse_args(argc, argv);
+  }
+  catch (const std::exception& err) {
+    std::cerr << err.what() << std::endl;
+    std::cerr << program;
+    return EXIT_FAILURE;
+  }
+
+  if (program.is_subcommand_used("base"))
   {
-    cfg.database_index = std::stoi(std::string(argv[1]));
-    spdlog::info("Config.database_index: {}", cfg.database_index);
-    if (!(1 <= cfg.database_index && cfg.database_index < 14)) { return EXIT_FAILURE; }
+    const auto dbase_index = base_command.get<int>("dbase_index");
+    main_base(dbase_index);
+  }
+  if (program.is_subcommand_used("attention"))
+  {
+    const auto atype = attention_command.get<std::string>("atype");
+    const auto model = attention_command.get<std::string>("model");
+    const auto exid  = attention_command.get<std::string>("exid");
+    const auto scan_index  = attention_command.get<int>("scan_index");
+    if (atype == "query") {
+      spdlog::info("Arg | {}", atype);
+      main_attention(atype, model, exid, scan_index);
+    } else {
+      const auto dbase_index
+        = attention_command.get<int>("dbase_index");
+      spdlog::info("Arg | {}-{:02d}", atype, dbase_index, scan_index);
+      main_attention(atype, model, exid, scan_index, dbase_index);
+    }
+  }
+  return EXIT_SUCCESS;
+}
+
+void main_base(const int & dbase_index)
+{
+  if (!(1 <= dbase_index && dbase_index < 14))
+  {
+    spdlog::critical("Config.dbase_index: {}", dbase_index);
+    exit(EXIT_FAILURE);
   }
 
   fs::path datasets_dir("/data/datasets");
@@ -536,7 +659,7 @@ auto main(int argc, char * argv[]) -> int32_t
 
 
   cwcloud::CloudVisualizer vis("debug_pcpr", 2, 3);
-  const auto di = cfg.database_index;
+  const auto di = dbase_index;
   const int QI_MIN = 0;
   const int QI_MAX = 1058;
   int qi = 0; // Query cloud index
@@ -623,6 +746,160 @@ auto main(int argc, char * argv[]) -> int32_t
       --ni;
     }
   }
+}
 
-  return EXIT_SUCCESS;
+void main_attention(
+  const std::string & atype,
+  const std::string & model,
+  const std::string & exid,
+  const int & scan_index,
+  const int & dbase_index)
+{
+  fs::path datasets_dir("/data/datasets");
+  const auto cs_campus_dir = datasets_dir / "dataset_cs_campus";
+  const auto results_dir = cs_campus_dir / "results";
+  const auto catalog_dir = cs_campus_dir / "catalog";
+  const auto benchmark_dir = cs_campus_dir / "benchmark_datasets";
+  const auto model_dir = results_dir / model;
+  const auto exid_dir = model_dir / exid;
+  const auto scan_dir
+    = (atype == "query")
+    ? (exid_dir / fmt::format("{}-{:05d}-attention", atype, scan_index))
+    : (exid_dir / fmt::format("{}-{:02d}-{:05d}-attention", atype, dbase_index, scan_index));
+
+  if(!fs::exists(exid_dir))
+  {
+    spdlog::error("{} doesn't exist!", exid_dir.string());
+    exit(EXIT_FAILURE);
+  }
+
+  std::vector<double> qsizes {0.05, 0.12, 0.4};
+  std::vector<std::string> file_list;
+  int mode = 0;
+
+  spdlog::info("[readCatalog]");
+  const auto [dbase_catalog, query_catalog]
+    = readCatalog(catalog_dir);
+  for (uint32_t di = 0U; di < dbase_catalog.size(); di++)
+  {
+    spdlog::info("- {}-th db, length: {}", di, dbase_catalog[di].size());
+  }
+  spdlog::info("- qeuries, length: {}", query_catalog.size());
+
+  cwcloud::CloudVisualizer vis("win", "attention");
+
+  // "after_diff_0_avg.txt"
+  // "after_diff_0_max.txt"
+  // "after_diff_1_avg.txt"
+  // "after_diff_1_max.txt"
+  // "after_diff_2_avg.txt"
+  // "after_diff_2_max.txt"
+  // "after_fuse_0_avg.txt"
+  // "after_fuse_0_max.txt"
+  // "after_fuse_1_avg.txt"
+  // "after_fuse_1_max.txt"
+  // "after_fuse_2_avg.txt"
+  // "after_fuse_2_max.txt"
+  // "conv_0_avg.txt"
+  // "conv_0_max.txt"
+  // "conv_1_avg.txt"
+  // "conv_1_max.txt"
+  // "conv_2_avg.txt"
+  // "conv_2_max.txt"
+  // "meta.txt"
+  // "raw_0.txt"
+  // "raw_1.txt"
+  // "raw_2.txt"
+
+  while (!vis.wasStopped())
+  {
+    if (mode == 0)
+    {
+      const auto origin_scan_fn
+        = (atype == "query")
+        ? (benchmark_dir / query_catalog[scan_index].path)
+        : (benchmark_dir / dbase_catalog[dbase_index][scan_index].path);
+      const auto origin_scan = readCloudXYZ64(origin_scan_fn.string());
+      spdlog::info(
+        "read origin_scan from {} | n_points: {}",
+        origin_scan_fn.string(),
+        origin_scan.size());
+      vis.setCloudXYZ(origin_scan                     , 1, 0);
+      vis.setCloudXYZ(pcl::PointCloud<pcl::PointXYZ>(), 1, 1);
+      vis.setCloudXYZ(pcl::PointCloud<pcl::PointXYZ>(), 0, 0);
+      vis.setCloudXYZ(pcl::PointCloud<pcl::PointXYZ>(), 0, 1);
+    }
+    else if (1 <= mode && mode <= 3)
+    {
+      const auto idx = mode - 1;
+      const auto raw_fn = scan_dir / fmt::format("raw_{}.txt");
+      const auto conv_fn = scan_dir / fmt::format("conv_{}_max.txt");
+      const auto diff_fn = scan_dir / fmt::format("after_diff_{}_max.txt");
+      const auto fuse_fn = scan_dir / fmt::format("after_fuse_{}_max.txt");
+
+      const auto raw_cloud  = readAttentionRawPts(raw_fn, qsizes[idx]);
+      const auto conv_cloud = readAttentionPts(conv_fn, qsizes[idx]);
+      const auto diff_cloud = readAttentionPts(diff_fn, qsizes[idx]);
+      const auto fuse_cloud = readAttentionPts(fuse_fn, qsizes[idx]);
+
+      spdlog::info(
+        "[q-{:.2f}](# {:4d}) read raw cloud from {}",
+        qsizes[idx],
+        raw_cloud.size(),
+        raw_fn.string());
+      spdlog::info(
+        "[q-{:.2f}](# {:4d}) read conv cloud from {}",
+        qsizes[idx],
+        conv_cloud.size(),
+        conv_fn.string());
+
+      vis.setCloudXYZ (raw_cloud , 1, 0);
+      vis.setCloudXYZI(conv_cloud, 1, 1);
+      vis.setCloudXYZI(diff_cloud, 0, 0);
+      vis.setCloudXYZI(fuse_cloud, 0, 1);
+    }
+    else if (4 <= mode && mode <= 6)
+    {
+      const auto idx = mode - 4;
+      const auto raw_fn = scan_dir / fmt::format("raw_{}.txt");
+      const auto conv_fn = scan_dir / fmt::format("conv_{}_avg.txt");
+      const auto diff_fn = scan_dir / fmt::format("after_diff_{}_avg.txt");
+      const auto fuse_fn = scan_dir / fmt::format("after_fuse_{}_avg.txt");
+
+      const auto raw_cloud  = readAttentionRawPts(raw_fn, qsizes[idx]);
+      const auto conv_cloud = readAttentionPts(conv_fn, qsizes[idx]);
+      const auto diff_cloud = readAttentionPts(diff_fn, qsizes[idx]);
+      const auto fuse_cloud = readAttentionPts(fuse_fn, qsizes[idx]);
+
+      spdlog::info(
+        "[q-{:.2f}](# {:4d}) read raw cloud from {}",
+        qsizes[idx],
+        raw_cloud.size(),
+        raw_fn.string());
+      vis.setCloudXYZ (raw_cloud , 1, 0);
+      vis.setCloudXYZI(conv_cloud, 1, 1);
+      vis.setCloudXYZI(diff_cloud, 0, 0);
+      vis.setCloudXYZI(fuse_cloud, 0, 1);
+    }
+
+    vis.run();
+
+    if (vis.getKeySym() == "Up")
+    {
+      mode = std::max(mode - 1, 0);
+    }
+    else if (vis.getKeySym() == "Down")
+    {
+      mode = std::min(mode + 1, 6);
+    }
+    // else if (vis.getKeySym() == "Right")
+    // {
+    //   // Something
+    // }
+    // else if (vis.getKeySym() == "Left")
+    // {
+    //   // Something
+    // }
+  }
+
 }
