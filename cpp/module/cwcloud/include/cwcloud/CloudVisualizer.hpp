@@ -49,12 +49,14 @@ public:
     pcl::PointCloud<pcl::PointXYZ> cloud,
     const int & nrow,
     const int & ncol,
+    const double & pixel_size=1.0,
     const std::string & _cloud_id="");
 
   void setCloudXYZI(
     pcl::PointCloud<pcl::PointXYZI> cloud,
     const int & nrow,
     const int & ncol,
+    const double & pixel_size=1.0,
     const std::string & _cloud_id="");
 
   void setCloudXYZwithNum(
@@ -62,6 +64,7 @@ public:
     const int & nrow,
     const int & ncol,
     const double & num,
+    const double & pixel_size=1.0,
     const std::string & _cloud_id="");
 
   void setGroundInformCloud(

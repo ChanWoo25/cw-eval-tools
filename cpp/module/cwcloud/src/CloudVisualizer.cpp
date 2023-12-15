@@ -156,10 +156,10 @@ CloudVisualizer::CloudVisualizer(
           viewport_ids_[vid]);
       }
     }
-    viewer_->addText("Quantized"   , 10, 10, "v0 text", viewport_ids_[0]);
-    viewer_->addText("After Conv", 10, 10, "v1 text", viewport_ids_[1]);
-    viewer_->addText("After Diff", 10, 10, "v2 text", viewport_ids_[2]);
-    viewer_->addText("AFter Fuse", 10, 10, "v3 text", viewport_ids_[3]);
+    viewer_->addText("Quantized" , 10, 10, "v2 text", viewport_ids_[2]);
+    viewer_->addText("After Conv", 10, 10, "v3 text", viewport_ids_[3]);
+    viewer_->addText("After Diff", 10, 10, "v0 text", viewport_ids_[0]);
+    viewer_->addText("AFter Fuse", 10, 10, "v1 text", viewport_ids_[1]);
   }
 
   viewer_->setShowFPS(true);
@@ -197,6 +197,7 @@ void CloudVisualizer::setCloudXYZ(
   pcl::PointCloud<pcl::PointXYZ> cloud,
   const int & nrow,
   const int & ncol,
+  const double & pixel_size,
   const std::string & _cloud_id)
 {
   if (   !(0 <= nrow && nrow < nrows_)
@@ -224,7 +225,7 @@ void CloudVisualizer::setCloudXYZ(
     viewer_->addPointCloud<pcl::PointXYZ>(cloud.makeShared(), color_handler, cloud_id, viewport_ids_[vid]);
     viewer_->setPointCloudRenderingProperties(
       pcl::visualization::PCL_VISUALIZER_POINT_SIZE,
-      2, cloud_id, viewport_ids_[vid]);
+      pixel_size, cloud_id, viewport_ids_[vid]);
   }
   else
   {
@@ -232,6 +233,9 @@ void CloudVisualizer::setCloudXYZ(
       = PointCloudColorHandlerGenericField<pcl::PointXYZ>(
           cloud.makeShared(), "z");
     viewer_->updatePointCloud<pcl::PointXYZ>(cloud.makeShared(), color_handler, cloud_id);
+    viewer_->setPointCloudRenderingProperties(
+      pcl::visualization::PCL_VISUALIZER_POINT_SIZE,
+      pixel_size, cloud_id, viewport_ids_[vid]);
   }
 }
 
@@ -239,6 +243,7 @@ void CloudVisualizer::setCloudXYZI(
   pcl::PointCloud<pcl::PointXYZI> cloud,
   const int & nrow,
   const int & ncol,
+  const double & pixel_size,
   const std::string & _cloud_id)
 {
   if (   !(0 <= nrow && nrow < nrows_)
@@ -261,19 +266,22 @@ void CloudVisualizer::setCloudXYZI(
     cloud_ids_[cloud_id] = true;
     auto color_handler
       = PointCloudColorHandlerGenericField<pcl::PointXYZI>(
-          cloud.makeShared(), "instensity");
+          cloud.makeShared(), "intensity");
     // pcl::visualization::PointCloudColorHandlerGenericField<pcl::PointXYZI> color_handler(cloud, "z");
     viewer_->addPointCloud<pcl::PointXYZI>(cloud.makeShared(), color_handler, cloud_id, viewport_ids_[vid]);
     viewer_->setPointCloudRenderingProperties(
       pcl::visualization::PCL_VISUALIZER_POINT_SIZE,
-      2, cloud_id, viewport_ids_[vid]);
+      pixel_size, cloud_id, viewport_ids_[vid]);
   }
   else
   {
     auto color_handler
       = PointCloudColorHandlerGenericField<pcl::PointXYZI>(
-          cloud.makeShared(), "instensity");
+          cloud.makeShared(), "intensity");
     viewer_->updatePointCloud<pcl::PointXYZI>(cloud.makeShared(), color_handler, cloud_id);
+    viewer_->setPointCloudRenderingProperties(
+      pcl::visualization::PCL_VISUALIZER_POINT_SIZE,
+      pixel_size, cloud_id, viewport_ids_[vid]);
   }
 }
 
@@ -282,9 +290,10 @@ void CloudVisualizer::setCloudXYZwithNum(
   const int & nrow,
   const int & ncol,
   const double & num,
+  const double & pixel_size,
   const std::string & _cloud_id)
 {
-  setCloudXYZ(cloud, nrow, ncol, _cloud_id);
+  setCloudXYZ(cloud, nrow, ncol, pixel_size, _cloud_id);
   std::string text = "Dist from Query: " + std::to_string(num);
   const int vid = nrow * ncols_ + ncol;
   const std::string text_id = _cloud_id + "-num";

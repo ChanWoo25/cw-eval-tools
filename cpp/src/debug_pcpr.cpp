@@ -1,5 +1,6 @@
 #include <cmath>
 #include <cstdlib>
+#include <limits>
 #include <memory>
 #include <pcl/ModelCoefficients.h>
 #include <pcl/PointIndices.h>
@@ -495,6 +496,40 @@ auto readAttentionPts(
     cloud.emplace_back(px, py, pz, intensity);
   }
   f_txt.close();
+
+  // double intensity_max = std::numeric_limits<double>::min();
+  // double intensity_min = std::numeric_limits<double>::max();
+  // for (const auto & pt: cloud.points)
+  // {
+  //   if (std::abs(pt.intensity) > intensity_max) {
+  //     intensity_max = std::abs(pt.intensity);
+  //   }
+  //   if (std::abs(pt.intensity) < intensity_min) {
+  //     intensity_min = std::abs(pt.intensity);
+  //   }
+  // }
+  // spdlog::info("intensity_min: {}", intensity_min);
+  // spdlog::info("intensity_max: {}", intensity_max);
+  // for (auto & pt: cloud.points)
+  // {
+  //   pt.intensity = std::abs(pt.intensity)
+  //                / (intensity_max - intensity_min);
+  // }
+
+  // intensity_max = std::numeric_limits<double>::min();
+  // intensity_min = std::numeric_limits<double>::max();
+  // for (const auto & pt: cloud.points)
+  // {
+  //   if (pt.intensity > intensity_max) {
+  //     intensity_max = pt.intensity;
+  //   }
+  //   if (pt.intensity < intensity_min) {
+  //     intensity_min = pt.intensity;
+  //   }
+  // }
+  // spdlog::info("intensity_min: {}", intensity_min);
+  // spdlog::info("intensity_max: {}", intensity_max);
+
   return cloud;
 }
 
@@ -824,7 +859,7 @@ void main_attention(
         "read origin_scan from {} | n_points: {}",
         origin_scan_fn.string(),
         origin_scan.size());
-      vis.setCloudXYZ(origin_scan                     , 1, 0);
+      vis.setCloudXYZ(origin_scan                     , 1, 0, 2.0);
       vis.setCloudXYZ(pcl::PointCloud<pcl::PointXYZ>(), 1, 1);
       vis.setCloudXYZ(pcl::PointCloud<pcl::PointXYZ>(), 0, 0);
       vis.setCloudXYZ(pcl::PointCloud<pcl::PointXYZ>(), 0, 1);
@@ -832,10 +867,10 @@ void main_attention(
     else if (1 <= mode && mode <= 3)
     {
       const auto idx = mode - 1;
-      const auto raw_fn = scan_dir / fmt::format("raw_{}.txt");
-      const auto conv_fn = scan_dir / fmt::format("conv_{}_max.txt");
-      const auto diff_fn = scan_dir / fmt::format("after_diff_{}_max.txt");
-      const auto fuse_fn = scan_dir / fmt::format("after_fuse_{}_max.txt");
+      const auto raw_fn = scan_dir / fmt::format("raw_{}.txt", idx);
+      const auto conv_fn = scan_dir / fmt::format("conv_{}_max.txt", idx);
+      const auto diff_fn = scan_dir / fmt::format("after_diff_{}_max.txt", idx);
+      const auto fuse_fn = scan_dir / fmt::format("after_fuse_{}_max.txt", idx);
 
       const auto raw_cloud  = readAttentionRawPts(raw_fn, qsizes[idx]);
       const auto conv_cloud = readAttentionPts(conv_fn, qsizes[idx]);
@@ -853,18 +888,19 @@ void main_attention(
         conv_cloud.size(),
         conv_fn.string());
 
-      vis.setCloudXYZ (raw_cloud , 1, 0);
-      vis.setCloudXYZI(conv_cloud, 1, 1);
-      vis.setCloudXYZI(diff_cloud, 0, 0);
-      vis.setCloudXYZI(fuse_cloud, 0, 1);
+      const double pixel_size = 1.0 + static_cast<double>(mode) * 3.0;
+      vis.setCloudXYZ (raw_cloud , 1, 0, pixel_size);
+      vis.setCloudXYZI(conv_cloud, 1, 1, pixel_size);
+      vis.setCloudXYZI(diff_cloud, 0, 0, pixel_size);
+      vis.setCloudXYZI(fuse_cloud, 0, 1, pixel_size);
     }
     else if (4 <= mode && mode <= 6)
     {
       const auto idx = mode - 4;
-      const auto raw_fn = scan_dir / fmt::format("raw_{}.txt");
-      const auto conv_fn = scan_dir / fmt::format("conv_{}_avg.txt");
-      const auto diff_fn = scan_dir / fmt::format("after_diff_{}_avg.txt");
-      const auto fuse_fn = scan_dir / fmt::format("after_fuse_{}_avg.txt");
+      const auto raw_fn = scan_dir / fmt::format("raw_{}.txt", idx);
+      const auto conv_fn = scan_dir / fmt::format("conv_{}_avg.txt", idx);
+      const auto diff_fn = scan_dir / fmt::format("after_diff_{}_avg.txt", idx);
+      const auto fuse_fn = scan_dir / fmt::format("after_fuse_{}_avg.txt", idx);
 
       const auto raw_cloud  = readAttentionRawPts(raw_fn, qsizes[idx]);
       const auto conv_cloud = readAttentionPts(conv_fn, qsizes[idx]);
@@ -876,10 +912,12 @@ void main_attention(
         qsizes[idx],
         raw_cloud.size(),
         raw_fn.string());
-      vis.setCloudXYZ (raw_cloud , 1, 0);
-      vis.setCloudXYZI(conv_cloud, 1, 1);
-      vis.setCloudXYZI(diff_cloud, 0, 0);
-      vis.setCloudXYZI(fuse_cloud, 0, 1);
+
+      const double pixel_size = 1.0 + static_cast<double>(mode-3) * 3.0;
+      vis.setCloudXYZ (raw_cloud , 1, 0, pixel_size);
+      vis.setCloudXYZI(conv_cloud, 1, 1, pixel_size);
+      vis.setCloudXYZI(diff_cloud, 0, 0, pixel_size);
+      vis.setCloudXYZI(fuse_cloud, 0, 1, pixel_size);
     }
 
     vis.run();
