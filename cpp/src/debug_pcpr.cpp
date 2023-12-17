@@ -1,3 +1,6 @@
+#include <pcpr.hpp>
+#include <cwcloud/CloudVisualizer.hpp>
+
 #include <cmath>
 #include <cstdlib>
 #include <limits>
@@ -25,110 +28,12 @@
 #include <vector>
 #include <algorithm>
 #include <tuple>
-#include <filesystem>
 #include <random>
 #include <glob.h>
-
-#include "cwcloud/CloudVisualizer.hpp"
-
+#include <filesystem>
 namespace fs = std::filesystem;
 
-std::string strip(const std::string & str)
-{
-  auto start_it = str.begin();
-  auto end_it = str.rbegin();
-  while (std::isspace(*start_it)) { ++start_it; }
-  while ( std::isspace(*end_it) ) {  ++end_it;  }
-  const auto len = end_it.base() - start_it;
-  return (len <= 0)
-          ? std::string("")
-          : std::string(start_it, end_it.base());
-}
 
-// std::vector<double> timestamps;
-// std::vector<Eigen::Matrix3d> rotations;
-// std::vector<Eigen::Quaterniond> quaternions;
-// std::vector<Eigen::Vector3d> translations;
-// std::vector<std::string> scan_fns;
-// size_t N_SCAN = 0UL;
-
-// void readPoses(const std::string & seq_dir)
-// {
-//   auto data_fn = fmt::format("{}/pose_fast_lio2.txt", seq_dir);
-//   std::fstream f_data(data_fn.c_str(), std::ios::in);
-//   // ROS_ASSERT(f_data.is_open());
-//   std::string line;
-//   while (std::getline(f_data, line))
-//   {
-//     if (line.empty()) { break; }
-//     std::istringstream iss(line);
-//     double timestamp;
-//     Eigen::Quaterniond quat;
-//     Eigen::Vector3d tran;
-//     iss >> timestamp;
-//     iss >> tran(0) >> tran(1) >> tran(2);
-//     iss >> quat.x() >> quat.y() >> quat.z() >> quat.w();
-//     timestamps.push_back(timestamp);
-//     quaternions.push_back(quat);
-//     rotations.push_back(quat.toRotationMatrix());
-//     translations.push_back(tran);
-//   }
-//   f_data.close();
-
-//   // ROS_ASSERT(timestamps.size() != 0UL);
-//   // ROS_ASSERT(timestamps.size() == translations.size());
-//   // ROS_ASSERT(timestamps.size() == quaternions.size());
-//   // ROS_ASSERT(timestamps.size() == rotations.size());
-//   N_SCAN = timestamps.size();
-//   fmt::print("[readPoses] N_SCAN (updated): {}\n", N_SCAN);
-// }
-
-// void readLidarData(const std::string & seq_dir)
-// {
-//   auto data_fn = fmt::format("{}/lidar_data.txt", seq_dir);
-//   std::fstream f_data(data_fn.c_str(), std::ios::in);
-//   std::string line;
-//   while (std::getline(f_data, line))
-//   {
-//     if (line.empty()) { break; }
-//     std::stringstream ss;
-//     ss << line;
-//     double timestamp;
-//     std::string scan_fn;
-
-//     ss >> timestamp >> scan_fn;
-//     scan_fns.push_back(fmt::format("{}/{}", seq_dir, scan_fn));
-//     if (scan_fns.size() == timestamps.size()) { break; }
-//   }
-//   f_data.close();
-
-//   // ROS_ASSERT(scan_fns.size() == timestamps.size());
-//   fmt::print("[readLidarData] 1st Scan '{}'\n", scan_fns.front());
-//   fmt::print("[readLidarData] Fin Scan '{}'\n", scan_fns.back());
-// }
-
-pcl::PointXYZI vec2point(const Eigen::Vector3d &vec) {
-  pcl::PointXYZI pi;
-  pi.x = vec[0];
-  pi.y = vec[1];
-  pi.z = vec[2];
-  return pi;
-}
-
-pcl::PointXYZ vec2pt_XYZ(const Eigen::Vector3d &vec) {
-  pcl::PointXYZ pt;
-  pt.x = vec[0];
-  pt.y = vec[1];
-  pt.z = vec[2];
-  return pt;
-}
-
-Eigen::Vector3d pt2vec(const pcl::PointXYZI &pi) {
-  return Eigen::Vector3d(pi.x, pi.y, pi.z);
-}
-Eigen::Vector3d pt2vec_XYZ(const pcl::PointXYZ &pi) {
-  return Eigen::Vector3d(pi.x, pi.y, pi.z);
-}
 
 // auto getCloudMeanStd(
 //   const pcl::PointCloud<pcl::PointXYZI> & cloud)
@@ -255,86 +160,6 @@ Eigen::Vector3d pt2vec_XYZ(const pcl::PointXYZ &pi) {
 // }
 
 
-
-struct Config
-{
-  int target_n_points = 4096;
-  std::string root_dir;
-  int database_index {-1};
-} cfg ;
-
-struct MetaPerScan
-{
-public:
-  MetaPerScan()=delete;
-  MetaPerScan(
-    const std::string & _path,
-    const double & _northing,
-    const double & _easting)
-    : path(_path),
-      northing(_northing),
-      easting(_easting) {}
-  std::string path;
-  double northing;
-  double easting;
-};
-
-using DBaseCatalog = std::vector<std::vector<MetaPerScan>>;
-using QueryCatalog = std::vector<MetaPerScan>;
-auto readCatalog(
-  const fs::path & catalog_dir)
-  -> std::tuple<DBaseCatalog, QueryCatalog>
-{
-  DBaseCatalog dbase_catalog;
-  QueryCatalog query_catalog;
-  dbase_catalog.resize(14, std::vector<MetaPerScan>());
-
-  /* Read 14 Database catalogs */
-  for (uint32_t i = 0U; i < 14; ++i)
-  {
-    const auto catalog_fn = catalog_dir / fmt::format("db_catalog_{}.txt", i);
-    std::ifstream fin(catalog_fn.string());
-    std::string line;
-    int n_lines = 0;
-    while (std::getline(fin, line))
-    {
-      if (line.empty()) { break; }
-      ++n_lines;
-      std::istringstream iss(line);
-      int index;
-      std::string bin_path;
-      double northing;
-      double easting;
-
-      iss >> index >> bin_path >> northing >> easting;
-      dbase_catalog[i].emplace_back(bin_path, northing, easting);
-    }
-    fin.close();
-  }
-
-  /* Read Query catalogs */
-  const auto catalog_fn = catalog_dir / fmt::format("qr_catalog.txt");
-  std::ifstream fin(catalog_fn.string());
-  std::string line;
-  int n_lines = 0;
-  while (std::getline(fin, line))
-  {
-    if (line.empty()) { break; }
-    ++n_lines;
-    std::istringstream iss(line);
-    int index;
-    std::string bin_path;
-    double northing;
-    double easting;
-
-    iss >> index >> bin_path >> northing >> easting;
-    query_catalog.emplace_back(bin_path, northing, easting);
-  }
-  fin.close();
-
-  return std::make_tuple(dbase_catalog, query_catalog);
-}
-
 using StateVec = std::vector<std::string>;
 using PosVec = std::vector<int>;
 using NegVec = std::vector<std::vector<int>>;
@@ -416,37 +241,6 @@ auto readDebugFile(
   spdlog::info("debug size: {} | Found({}), Not found({}), No answer({})",
     n_lines, cnt_found, cnt_not_found, cnt_no_answer);
   return std::make_tuple(state_vec, pos_vec, neg_vec, score_vec);
-}
-
-auto readCloudXYZ64(
-  const std::string & scan_fn)
-  ->pcl::PointCloud<pcl::PointXYZ>
-{
-  std::fstream f_bin(scan_fn, std::ios::in | std::ios::binary);
-  // ROS_ASSERT(f_bin.is_open());
-
-  f_bin.seekg(0, std::ios::end);
-  const size_t num_elements = f_bin.tellg() / sizeof(double);
-  std::vector<double> buf(num_elements);
-  f_bin.seekg(0, std::ios::beg);
-  f_bin.read(
-    reinterpret_cast<char *>(
-      &buf[0]),
-      num_elements * sizeof(double));
-  f_bin.close();
-  // fmt::print("Add {} pts\n", num_elements/4);
-  pcl::PointCloud<pcl::PointXYZ> cloud;
-  for (std::size_t i = 0; i < buf.size(); i += 3)
-  {
-    pcl::PointXYZ point;
-    point.x = buf[i];
-    point.y = buf[i + 1];
-    point.z = buf[i + 2];
-    Eigen::Vector3d pv = pt2vec_XYZ(point);
-    point = vec2pt_XYZ(pv);
-    cloud.push_back(point);
-  }
-  return cloud;
 }
 
 auto readAttentionRawPts(
@@ -710,7 +504,7 @@ void main_base(const int & dbase_index)
   {
     { /*  Register Query Cloud  & Clean other grids */
       const auto scan_fn = benchmark_dir / query_catalog[qi].path;
-      const auto scan = readCloudXYZ64(scan_fn.string());
+      const auto scan = readCloudXyz64(scan_fn.string());
       // spdlog::info("read scan from {} | n_points: {}", scan_fn.string(), scan.size());
       vis.setCloudXYZ(scan, 1, 0);
       vis.setCloudXYZ(pcl::PointCloud<pcl::PointXYZ>(), 1, 1);
@@ -728,7 +522,7 @@ void main_base(const int & dbase_index)
       spdlog::info("[Q-{:04d}] T-{:-4d}", qi, pos_vec[qi]);
       { /*  Register Positive Cloud */
         const auto scan_fn = benchmark_dir / sub_dbase_catalog[pos_vec[qi]].path;
-        const auto scan = readCloudXYZ64(scan_fn.string());
+        const auto scan = readCloudXyz64(scan_fn.string());
         vis.setCloudXYZ(scan, 1, 1);
       }
       if (!neg_vec[qi].empty())
@@ -736,7 +530,7 @@ void main_base(const int & dbase_index)
         for (size_t nj = ni; nj < neg_vec[qi].size(); nj++)
         {
           const auto scan_fn = benchmark_dir / sub_dbase_catalog[neg_vec[qi][nj]].path;
-          const auto scan = readCloudXYZ64(scan_fn.string());
+          const auto scan = readCloudXyz64(scan_fn.string());
           const int col = static_cast<int>(nj - ni);
           vis.setCloudXYZ(scan, 0, col);
           if (col >= 2) { break; }
@@ -752,7 +546,7 @@ void main_base(const int & dbase_index)
         for (size_t nj = ni; nj < neg_vec[qi].size(); nj++)
         {
           const auto scan_fn = benchmark_dir / sub_dbase_catalog[neg_vec[qi][nj]].path;
-          const auto scan = readCloudXYZ64(scan_fn.string());
+          const auto scan = readCloudXyz64(scan_fn.string());
           const int col = static_cast<int>(nj - ni);
           vis.setCloudXYZ(scan, 0, col);
           if (col >= 2) { break; }
@@ -765,11 +559,19 @@ void main_base(const int & dbase_index)
     if (vis.getKeySym() == "Up")
     {
       qi = std::max(QI_MIN, qi-1);
+      while (state_vec[qi] == "None" && qi != QI_MIN)
+      {
+        qi = std::max(QI_MIN, qi-1);
+      }
       ni = 0UL;
     }
     else if (vis.getKeySym() == "Down")
     {
       qi = std::min(QI_MAX, qi+1);
+      while (state_vec[qi] == "None" && qi != QI_MAX)
+      {
+        qi = std::min(QI_MAX, qi+1);
+      }
       ni = 0UL;
     }
     else if (vis.getKeySym() == "Right")
@@ -821,6 +623,11 @@ void main_attention(
   }
   spdlog::info("- qeuries, length: {}", query_catalog.size());
 
+  /* Read nearests */
+  const auto nearest_fn = cs_campus_dir / "catalog-nearest" / fmt::format("query-dbase{:02d}-top_4-nearest.txt", dbase_index);
+  spdlog::info("Read \"{}\" | {}", nearest_fn.string(), fs::exists(nearest_fn));
+  const auto nearest_vec = readNearestMetas(nearest_fn);
+
   cwcloud::CloudVisualizer vis("win", "attention");
 
   // "after_diff_0_avg.txt"
@@ -854,7 +661,7 @@ void main_attention(
         = (atype == "query")
         ? (benchmark_dir / query_catalog[scan_index].path)
         : (benchmark_dir / dbase_catalog[dbase_index][scan_index].path);
-      const auto origin_scan = readCloudXYZ64(origin_scan_fn.string());
+      const auto origin_scan = readCloudXyz64(origin_scan_fn.string());
       spdlog::info(
         "read origin_scan from {} | n_points: {}",
         origin_scan_fn.string(),
