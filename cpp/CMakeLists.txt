@@ -114,9 +114,12 @@ add_subdirectory(${${PACKAGE_NAME}_MODULE_PATH})
 # message(STATUS "SPDLOG_LIBS: ${SPDLOG_LIBS}")
 # message(STATUS "PCL_LIBS: ${PCL_LIBS}")
 
-add_executable(parse_point_cloud src/parse_point_cloud.cpp)
+add_executable(parse_point_cloud
+  src/parse_point_cloud.cpp
+  src/pcpr.cpp)
 target_link_libraries(parse_point_cloud
   CWCLOUD
+  CXXUTIL
   ${SPDLOG_LIBS}
   "${PCL_LIBS}"
 )
@@ -130,9 +133,12 @@ target_compile_options(parse_point_cloud PRIVATE
   -Wall -Wextra -Wpedantic -Werror
 )
 
-add_executable(debug_pcpr src/debug_pcpr.cpp)
+add_executable(debug_pcpr
+  src/debug_pcpr.cpp
+  src/pcpr.cpp)
 target_link_libraries(debug_pcpr
   CWCLOUD
+  CXXUTIL
   ${SPDLOG_LIBS}
   "${PCL_LIBS}"
   argparse::argparse
@@ -148,9 +154,12 @@ target_compile_options(debug_pcpr PRIVATE
   -Wall -Wextra -Wpedantic -Werror
 )
 
-add_executable(explore_cs_campus src/explore_cs_campus.cpp)
+add_executable(explore_cs_campus
+  src/explore_cs_campus.cpp
+  src/pcpr.cpp)
 target_link_libraries(explore_cs_campus
   CWCLOUD
+  CXXUTIL
   ${SPDLOG_LIBS}
   "${PCL_LIBS}"
 )
@@ -173,9 +182,12 @@ target_compile_options(explore_cs_campus PRIVATE
 # )
 # FetchContent_MakeAvailable(argparse)
 
-add_executable(save_new_catalog src/save_new_catalog.cpp)
+add_executable(save_new_catalog
+  src/save_new_catalog.cpp
+  src/pcpr.cpp)
 target_link_libraries(save_new_catalog
   CWCLOUD
+  CXXUTIL
   ${SPDLOG_LIBS}
   "${PCL_LIBS}"
   argparse::argparse
