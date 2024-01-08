@@ -1,0 +1,19 @@
+[
+{
+  "directory": "/root/shared/cw-eval-tools/cpp/proj_cote/build",
+  "command": "/usr/bin/clang++ -DSPDLOG_COMPILED_LIB -I/root/shared/cw-eval-tools/cpp/proj_cote/include -isystem /root/shared/cw-eval-tools/cpp/proj_cote/build/thirdparty/spdlog/install/Release/include -O3 -DNDEBUG -Wall -Wextra -Wpedantic -Werror -std=c++17 -o CMakeFiles/coding_test.dir/src/archive.cpp.o -c /root/shared/cw-eval-tools/cpp/proj_cote/src/archive.cpp",
+  "file": "/root/shared/cw-eval-tools/cpp/proj_cote/src/archive.cpp"
+},
+
+{
+  "directory": "/root/shared/cw-eval-tools/cpp/proj_cote/build",
+  "command": "/usr/bin/clang++ -DSPDLOG_COMPILED_LIB -I/root/shared/cw-eval-tools/cpp/proj_cote/include -isystem /root/shared/cw-eval-tools/cpp/proj_cote/build/thirdparty/spdlog/install/Release/include -O3 -DNDEBUG -Wall -Wextra -Wpedantic -Werror -std=c++17 -o CMakeFiles/coding_test.dir/main.cc.o -c /root/shared/cw-eval-tools/cpp/proj_cote/main.cc",
+  "file": "/root/shared/cw-eval-tools/cpp/proj_cote/main.cc"
+},
+
+{
+  "directory": "/root/shared/cw-eval-tools/cpp/proj_cote/build",
+  "command": "/usr/bin/clang++ -DSPDLOG_COMPILED_LIB -I/root/shared/cw-eval-tools/cpp/proj_cote/include -isystem /root/shared/cw-eval-tools/cpp/proj_cote/build/thirdparty/spdlog/install/Release/include -O3 -DNDEBUG -Wall -Wextra -Wpedantic -Werror -std=c++17 -c /root/shared/cw-eval-tools/cpp/proj_cote/include/archive.hpp",
+  "file": "/root/shared/cw-eval-tools/cpp/proj_cote/include/archive.hpp"
+}
+]

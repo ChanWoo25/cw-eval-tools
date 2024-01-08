@@ -1,0 +1,5 @@
+- index: 0
+  type: vvi
+  input:
+    - [9, 3]
+    - [8, 6]
