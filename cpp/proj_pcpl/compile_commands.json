@@ -1,0 +1,73 @@
+[
+{
+  "directory": "/root/shared/cw-eval-tools/cpp/build",
+  "command": "/usr/bin/clang++ -DBOOST_ALL_NO_LIB -DBOOST_FILESYSTEM_DYN_LINK -DBOOST_IOSTREAMS_DYN_LINK -DBOOST_SERIALIZATION_DYN_LINK -DBOOST_SYSTEM_DYN_LINK -DQT_CORE_LIB -DQT_GUI_LIB -DQT_NO_DEBUG -DQT_WIDGETS_LIB -DSPDLOG_COMPILED_LIB -Dqh_QHpointer -DvtkRenderingContext2D_AUTOINIT=1(vtkRenderingContextOpenGL2) -DvtkRenderingCore_AUTOINIT=3(vtkInteractionStyle,vtkRenderingFreeType,vtkRenderingOpenGL2) -I../include -I../module/cwcloud/include -I../module/cxxutil/include -isystem /usr/include/vtk-7.1 -isystem /usr/include/freetype2 -isystem thirdparty/spdlog/install/Release/include -isystem /usr/local/include/pcl-1.13 -isystem /usr/include/eigen3 -isystem /usr/include/ni -isystem /usr/include/openni2 -isystem /usr/include/x86_64-linux-gnu/qt5 -isystem /usr/include/x86_64-linux-gnu/qt5/QtWidgets -isystem /usr/include/x86_64-linux-gnu/qt5/QtGui -isystem /usr/include/x86_64-linux-gnu/qt5/QtCore -isystem /usr/lib/x86_64-linux-gnu/qt5/mkspecs/linux-g++ -O3 -DNDEBUG -Wall -Wextra -Wpedantic -Werror -msse4.2 -mfpmath=sse -march=native -mavx2 -fPIC -std=c++17 -o CMakeFiles/save_new_catalog.dir/src/save_new_catalog.cpp.o -c /root/shared/cw-eval-tools/cpp/src/save_new_catalog.cpp",
+  "file": "/root/shared/cw-eval-tools/cpp/src/save_new_catalog.cpp"
+},
+
+{
+  "directory": "/root/shared/cw-eval-tools/cpp/build",
+  "command": "/usr/bin/clang++ -DBOOST_ALL_NO_LIB -DBOOST_FILESYSTEM_DYN_LINK -DBOOST_IOSTREAMS_DYN_LINK -DBOOST_SERIALIZATION_DYN_LINK -DBOOST_SYSTEM_DYN_LINK -DQT_CORE_LIB -DQT_GUI_LIB -DQT_NO_DEBUG -DQT_WIDGETS_LIB -DSPDLOG_COMPILED_LIB -Dqh_QHpointer -DvtkRenderingContext2D_AUTOINIT=1(vtkRenderingContextOpenGL2) -DvtkRenderingCore_AUTOINIT=3(vtkInteractionStyle,vtkRenderingFreeType,vtkRenderingOpenGL2) -I../include -I../module/cwcloud/include -I../module/cxxutil/include -isystem /usr/include/vtk-7.1 -isystem /usr/include/freetype2 -isystem thirdparty/spdlog/install/Release/include -isystem /usr/local/include/pcl-1.13 -isystem /usr/include/eigen3 -isystem /usr/include/ni -isystem /usr/include/openni2 -isystem /usr/include/x86_64-linux-gnu/qt5 -isystem /usr/include/x86_64-linux-gnu/qt5/QtWidgets -isystem /usr/include/x86_64-linux-gnu/qt5/QtGui -isystem /usr/include/x86_64-linux-gnu/qt5/QtCore -isystem /usr/lib/x86_64-linux-gnu/qt5/mkspecs/linux-g++ -O3 -DNDEBUG -Wall -Wextra -Wpedantic -Werror -msse4.2 -mfpmath=sse -march=native -mavx2 -fPIC -std=c++17 -o CMakeFiles/explore_cs_campus.dir/src/explore_cs_campus.cpp.o -c /root/shared/cw-eval-tools/cpp/src/explore_cs_campus.cpp",
+  "file": "/root/shared/cw-eval-tools/cpp/src/explore_cs_campus.cpp"
+},
+
+{
+  "directory": "/root/shared/cw-eval-tools/cpp/build",
+  "command": "/usr/bin/clang++ -DBOOST_ALL_NO_LIB -DBOOST_FILESYSTEM_DYN_LINK -DBOOST_IOSTREAMS_DYN_LINK -DBOOST_SERIALIZATION_DYN_LINK -DBOOST_SYSTEM_DYN_LINK -DQT_CORE_LIB -DQT_GUI_LIB -DQT_NO_DEBUG -DQT_WIDGETS_LIB -DSPDLOG_COMPILED_LIB -Dqh_QHpointer -DvtkRenderingContext2D_AUTOINIT=1(vtkRenderingContextOpenGL2) -DvtkRenderingCore_AUTOINIT=3(vtkInteractionStyle,vtkRenderingFreeType,vtkRenderingOpenGL2) -I../include -I../module/cwcloud/include -I../module/cxxutil/include -isystem /usr/include/vtk-7.1 -isystem /usr/include/freetype2 -isystem thirdparty/spdlog/install/Release/include -isystem /usr/local/include/pcl-1.13 -isystem /usr/include/eigen3 -isystem /usr/include/ni -isystem /usr/include/openni2 -isystem /usr/include/x86_64-linux-gnu/qt5 -isystem /usr/include/x86_64-linux-gnu/qt5/QtWidgets -isystem /usr/include/x86_64-linux-gnu/qt5/QtGui -isystem /usr/include/x86_64-linux-gnu/qt5/QtCore -isystem /usr/lib/x86_64-linux-gnu/qt5/mkspecs/linux-g++ -O3 -DNDEBUG -Wall -Wextra -Wpedantic -Werror -msse4.2 -mfpmath=sse -march=native -mavx2 -fPIC -std=c++17 -o CMakeFiles/explore_cs_campus.dir/src/pcpr.cpp.o -c /root/shared/cw-eval-tools/cpp/src/pcpr.cpp",
+  "file": "/root/shared/cw-eval-tools/cpp/src/pcpr.cpp"
+},
+
+{
+  "directory": "/root/shared/cw-eval-tools/cpp/build",
+  "command": "/usr/bin/clang++ -DBOOST_ALL_NO_LIB -DBOOST_FILESYSTEM_DYN_LINK -DBOOST_IOSTREAMS_DYN_LINK -DBOOST_SERIALIZATION_DYN_LINK -DBOOST_SYSTEM_DYN_LINK -DQT_CORE_LIB -DQT_GUI_LIB -DQT_NO_DEBUG -DQT_WIDGETS_LIB -DSPDLOG_COMPILED_LIB -Dqh_QHpointer -DvtkRenderingContext2D_AUTOINIT=1(vtkRenderingContextOpenGL2) -DvtkRenderingCore_AUTOINIT=3(vtkInteractionStyle,vtkRenderingFreeType,vtkRenderingOpenGL2) -I../include -I../module/cwcloud/include -I../module/cxxutil/include -isystem /usr/include/vtk-7.1 -isystem /usr/include/freetype2 -isystem thirdparty/spdlog/install/Release/include -isystem /usr/local/include/pcl-1.13 -isystem /usr/include/eigen3 -isystem /usr/include/ni -isystem /usr/include/openni2 -isystem /usr/include/x86_64-linux-gnu/qt5 -isystem /usr/include/x86_64-linux-gnu/qt5/QtWidgets -isystem /usr/include/x86_64-linux-gnu/qt5/QtGui -isystem /usr/include/x86_64-linux-gnu/qt5/QtCore -isystem /usr/lib/x86_64-linux-gnu/qt5/mkspecs/linux-g++ -O3 -DNDEBUG -Wall -Wextra -Wpedantic -Werror -msse4.2 -mfpmath=sse -march=native -mavx2 -fPIC -std=c++17 -o CMakeFiles/debug_pcpr.dir/src/debug_pcpr.cpp.o -c /root/shared/cw-eval-tools/cpp/src/debug_pcpr.cpp",
+  "file": "/root/shared/cw-eval-tools/cpp/src/debug_pcpr.cpp"
+},
+
+{
+  "directory": "/root/shared/cw-eval-tools/cpp/build",
+  "command": "/usr/bin/clang++ -DBOOST_ALL_NO_LIB -DBOOST_FILESYSTEM_DYN_LINK -DBOOST_IOSTREAMS_DYN_LINK -DBOOST_SERIALIZATION_DYN_LINK -DBOOST_SYSTEM_DYN_LINK -DQT_CORE_LIB -DQT_GUI_LIB -DQT_NO_DEBUG -DQT_WIDGETS_LIB -DSPDLOG_COMPILED_LIB -Dqh_QHpointer -DvtkRenderingContext2D_AUTOINIT=1(vtkRenderingContextOpenGL2) -DvtkRenderingCore_AUTOINIT=3(vtkInteractionStyle,vtkRenderingFreeType,vtkRenderingOpenGL2) -I../include -I../module/cwcloud/include -I../module/cxxutil/include -isystem /usr/include/vtk-7.1 -isystem /usr/include/freetype2 -isystem thirdparty/spdlog/install/Release/include -isystem /usr/local/include/pcl-1.13 -isystem /usr/include/eigen3 -isystem /usr/include/ni -isystem /usr/include/openni2 -isystem /usr/include/x86_64-linux-gnu/qt5 -isystem /usr/include/x86_64-linux-gnu/qt5/QtWidgets -isystem /usr/include/x86_64-linux-gnu/qt5/QtGui -isystem /usr/include/x86_64-linux-gnu/qt5/QtCore -isystem /usr/lib/x86_64-linux-gnu/qt5/mkspecs/linux-g++ -O3 -DNDEBUG -Wall -Wextra -Wpedantic -Werror -msse4.2 -mfpmath=sse -march=native -mavx2 -fPIC -std=c++17 -o CMakeFiles/debug_pcpr.dir/src/pcpr.cpp.o -c /root/shared/cw-eval-tools/cpp/src/pcpr.cpp",
+  "file": "/root/shared/cw-eval-tools/cpp/src/pcpr.cpp"
+},
+
+{
+  "directory": "/root/shared/cw-eval-tools/cpp/build",
+  "command": "/usr/bin/clang++ -DBOOST_ALL_NO_LIB -DBOOST_FILESYSTEM_DYN_LINK -DBOOST_IOSTREAMS_DYN_LINK -DBOOST_SERIALIZATION_DYN_LINK -DBOOST_SYSTEM_DYN_LINK -DQT_CORE_LIB -DQT_GUI_LIB -DQT_NO_DEBUG -DQT_WIDGETS_LIB -DSPDLOG_COMPILED_LIB -Dqh_QHpointer -DvtkRenderingContext2D_AUTOINIT=1(vtkRenderingContextOpenGL2) -DvtkRenderingCore_AUTOINIT=3(vtkInteractionStyle,vtkRenderingFreeType,vtkRenderingOpenGL2) -I../include -I../module/cwcloud/include -I../module/cxxutil/include -isystem /usr/include/vtk-7.1 -isystem /usr/include/freetype2 -isystem thirdparty/spdlog/install/Release/include -isystem /usr/local/include/pcl-1.13 -isystem /usr/include/eigen3 -isystem /usr/include/ni -isystem /usr/include/openni2 -isystem /usr/include/x86_64-linux-gnu/qt5 -isystem /usr/include/x86_64-linux-gnu/qt5/QtWidgets -isystem /usr/include/x86_64-linux-gnu/qt5/QtGui -isystem /usr/include/x86_64-linux-gnu/qt5/QtCore -isystem /usr/lib/x86_64-linux-gnu/qt5/mkspecs/linux-g++ -O3 -DNDEBUG -Wall -Wextra -Wpedantic -Werror -msse4.2 -mfpmath=sse -march=native -mavx2 -fPIC -std=c++17 -o CMakeFiles/parse_point_cloud.dir/src/parse_point_cloud.cpp.o -c /root/shared/cw-eval-tools/cpp/src/parse_point_cloud.cpp",
+  "file": "/root/shared/cw-eval-tools/cpp/src/parse_point_cloud.cpp"
+},
+
+{
+  "directory": "/root/shared/cw-eval-tools/cpp/build",
+  "command": "/usr/bin/clang++ -DBOOST_ALL_NO_LIB -DBOOST_FILESYSTEM_DYN_LINK -DBOOST_IOSTREAMS_DYN_LINK -DBOOST_SERIALIZATION_DYN_LINK -DBOOST_SYSTEM_DYN_LINK -DQT_CORE_LIB -DQT_GUI_LIB -DQT_NO_DEBUG -DQT_WIDGETS_LIB -DSPDLOG_COMPILED_LIB -Dqh_QHpointer -DvtkRenderingContext2D_AUTOINIT=1(vtkRenderingContextOpenGL2) -DvtkRenderingCore_AUTOINIT=3(vtkInteractionStyle,vtkRenderingFreeType,vtkRenderingOpenGL2) -I../include -I../module/cwcloud/include -I../module/cxxutil/include -isystem /usr/include/vtk-7.1 -isystem /usr/include/freetype2 -isystem thirdparty/spdlog/install/Release/include -isystem /usr/local/include/pcl-1.13 -isystem /usr/include/eigen3 -isystem /usr/include/ni -isystem /usr/include/openni2 -isystem /usr/include/x86_64-linux-gnu/qt5 -isystem /usr/include/x86_64-linux-gnu/qt5/QtWidgets -isystem /usr/include/x86_64-linux-gnu/qt5/QtGui -isystem /usr/include/x86_64-linux-gnu/qt5/QtCore -isystem /usr/lib/x86_64-linux-gnu/qt5/mkspecs/linux-g++ -O3 -DNDEBUG -Wall -Wextra -Wpedantic -Werror -msse4.2 -mfpmath=sse -march=native -mavx2 -fPIC -std=c++17 -o CMakeFiles/parse_point_cloud.dir/src/pcpr.cpp.o -c /root/shared/cw-eval-tools/cpp/src/pcpr.cpp",
+  "file": "/root/shared/cw-eval-tools/cpp/src/pcpr.cpp"
+},
+
+{
+  "directory": "/root/shared/cw-eval-tools/cpp/build",
+  "command": "/usr/bin/clang++ -DBOOST_ALL_NO_LIB -DBOOST_FILESYSTEM_DYN_LINK -DBOOST_IOSTREAMS_DYN_LINK -DBOOST_SERIALIZATION_DYN_LINK -DBOOST_SYSTEM_DYN_LINK -DQT_CORE_LIB -DQT_GUI_LIB -DQT_NO_DEBUG -DQT_WIDGETS_LIB -DSPDLOG_COMPILED_LIB -Dqh_QHpointer -DvtkRenderingContext2D_AUTOINIT=1(vtkRenderingContextOpenGL2) -DvtkRenderingCore_AUTOINIT=3(vtkInteractionStyle,vtkRenderingFreeType,vtkRenderingOpenGL2) -I../module/cwcloud/include -isystem /usr/include/vtk-7.1 -isystem /usr/include/freetype2 -isystem /usr/local/include/pcl-1.13 -isystem /usr/include/eigen3 -isystem /usr/include/ni -isystem /usr/include/openni2 -isystem thirdparty/spdlog/install/Release/include -isystem /usr/include/x86_64-linux-gnu/qt5 -isystem /usr/include/x86_64-linux-gnu/qt5/QtWidgets -isystem /usr/include/x86_64-linux-gnu/qt5/QtGui -isystem /usr/include/x86_64-linux-gnu/qt5/QtCore -isystem /usr/lib/x86_64-linux-gnu/qt5/mkspecs/linux-g++ -O3 -DNDEBUG -Wall -Wextra -Wpedantic -Werror -msse4.2 -mfpmath=sse -march=native -mavx2 -fPIC -std=c++17 -o module/cwcloud/CMakeFiles/CWCLOUD.dir/src/CloudVisualizer.cpp.o -c /root/shared/cw-eval-tools/cpp/module/cwcloud/src/CloudVisualizer.cpp",
+  "file": "/root/shared/cw-eval-tools/cpp/module/cwcloud/src/CloudVisualizer.cpp"
+},
+
+{
+  "directory": "/root/shared/cw-eval-tools/cpp/build",
+  "command": "/usr/bin/clang++ -DSPDLOG_COMPILED_LIB -DvtkRenderingContext2D_AUTOINIT=1(vtkRenderingContextOpenGL2) -DvtkRenderingCore_AUTOINIT=3(vtkInteractionStyle,vtkRenderingFreeType,vtkRenderingOpenGL2) -I/usr/include/vtk-7.1 -I/usr/include/freetype2 -I../module/cxxutil/include -isystem thirdparty/spdlog/install/Release/include -O3 -DNDEBUG -Wall -Wextra -Wpedantic -Werror -std=c++17 -o module/cxxutil/CMakeFiles/CXXUTIL.dir/src/CSVRow.cpp.o -c /root/shared/cw-eval-tools/cpp/module/cxxutil/src/CSVRow.cpp",
+  "file": "/root/shared/cw-eval-tools/cpp/module/cxxutil/src/CSVRow.cpp"
+},
+
+{
+  "directory": "/root/shared/cw-eval-tools/cpp/build",
+  "command": "/usr/bin/clang++ -DBOOST_ALL_NO_LIB -DBOOST_FILESYSTEM_DYN_LINK -DBOOST_IOSTREAMS_DYN_LINK -DBOOST_SERIALIZATION_DYN_LINK -DBOOST_SYSTEM_DYN_LINK -DQT_CORE_LIB -DQT_GUI_LIB -DQT_NO_DEBUG -DQT_WIDGETS_LIB -DSPDLOG_COMPILED_LIB -Dqh_QHpointer -DvtkRenderingContext2D_AUTOINIT=1(vtkRenderingContextOpenGL2) -DvtkRenderingCore_AUTOINIT=3(vtkInteractionStyle,vtkRenderingFreeType,vtkRenderingOpenGL2) -I../include -I../module/cwcloud/include -I../module/cxxutil/include -isystem /usr/include/vtk-7.1 -isystem /usr/include/freetype2 -isystem thirdparty/spdlog/install/Release/include -isystem /usr/local/include/pcl-1.13 -isystem /usr/include/eigen3 -isystem /usr/include/ni -isystem /usr/include/openni2 -isystem /usr/include/x86_64-linux-gnu/qt5 -isystem /usr/include/x86_64-linux-gnu/qt5/QtWidgets -isystem /usr/include/x86_64-linux-gnu/qt5/QtGui -isystem /usr/include/x86_64-linux-gnu/qt5/QtCore -isystem /usr/lib/x86_64-linux-gnu/qt5/mkspecs/linux-g++ -O3 -DNDEBUG -Wall -Wextra -Wpedantic -Werror -msse4.2 -mfpmath=sse -march=native -mavx2 -fPIC -std=c++17 -c /root/shared/cw-eval-tools/cpp/module/cwcloud/include/cwcloud/CloudVisualizer.hpp",
+  "file": "/root/shared/cw-eval-tools/cpp/module/cwcloud/include/cwcloud/CloudVisualizer.hpp"
+},
+
+{
+  "directory": "/root/shared/cw-eval-tools/cpp/build",
+  "command": "/usr/bin/clang++ -DBOOST_ALL_NO_LIB -DBOOST_FILESYSTEM_DYN_LINK -DBOOST_IOSTREAMS_DYN_LINK -DBOOST_SERIALIZATION_DYN_LINK -DBOOST_SYSTEM_DYN_LINK -DQT_CORE_LIB -DQT_GUI_LIB -DQT_NO_DEBUG -DQT_WIDGETS_LIB -DSPDLOG_COMPILED_LIB -Dqh_QHpointer -DvtkRenderingContext2D_AUTOINIT=1(vtkRenderingContextOpenGL2) -DvtkRenderingCore_AUTOINIT=3(vtkInteractionStyle,vtkRenderingFreeType,vtkRenderingOpenGL2) -I../include -I../module/cwcloud/include -I../module/cxxutil/include -isystem /usr/include/vtk-7.1 -isystem /usr/include/freetype2 -isystem thirdparty/spdlog/install/Release/include -isystem /usr/local/include/pcl-1.13 -isystem /usr/include/eigen3 -isystem /usr/include/ni -isystem /usr/include/openni2 -isystem /usr/include/x86_64-linux-gnu/qt5 -isystem /usr/include/x86_64-linux-gnu/qt5/QtWidgets -isystem /usr/include/x86_64-linux-gnu/qt5/QtGui -isystem /usr/include/x86_64-linux-gnu/qt5/QtCore -isystem /usr/lib/x86_64-linux-gnu/qt5/mkspecs/linux-g++ -O3 -DNDEBUG -Wall -Wextra -Wpedantic -Werror -msse4.2 -mfpmath=sse -march=native -mavx2 -fPIC -std=c++17 -c /root/shared/cw-eval-tools/cpp/include/pcpr.hpp",
+  "file": "/root/shared/cw-eval-tools/cpp/include/pcpr.hpp"
+},
+
+{
+  "directory": "/root/shared/cw-eval-tools/cpp/build",
+  "command": "/usr/bin/clang++ -DSPDLOG_COMPILED_LIB -DvtkRenderingContext2D_AUTOINIT=1(vtkRenderingContextOpenGL2) -DvtkRenderingCore_AUTOINIT=3(vtkInteractionStyle,vtkRenderingFreeType,vtkRenderingOpenGL2) -I/usr/include/vtk-7.1 -I/usr/include/freetype2 -I../module/cxxutil/include -isystem thirdparty/spdlog/install/Release/include -O3 -DNDEBUG -Wall -Wextra -Wpedantic -Werror -std=c++17 -c /root/shared/cw-eval-tools/cpp/module/cxxutil/include/cxxutil/CSVRow.hpp",
+  "file": "/root/shared/cw-eval-tools/cpp/module/cxxutil/include/cxxutil/CSVRow.hpp"
+}
+]
