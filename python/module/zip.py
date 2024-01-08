@@ -7,6 +7,8 @@ import bz2
 import pickle
 import _pickle as cPickle
 
+# import bz2
+# import _pickle as cPickle
 # # Pickle a file and then compress it into a file with extension
 # def compressed_pickle(title, data):
 #     with bz2.BZ2File(title + '.pbz2', 'w') as f:

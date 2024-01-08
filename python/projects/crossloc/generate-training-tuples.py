@@ -9,7 +9,6 @@ import pandas as pd
 from sklearn.neighbors import KDTree
 
 import pickle
-import argparse
 from tqdm import tqdm
 
 DATASETS_DIR = Path('/data/datasets')
@@ -19,29 +18,6 @@ UMD_DIR = BENCHMARK_DIR / 'umd'
 assert (DATASETS_DIR.exists())
 assert (CS_CAMPUS_DIR.exists())
 assert (BENCHMARK_DIR.exists())
-
-TRAIN_SET = [
-  'umcp_aerial_resized070_00',
-  'umcp_lidar5_ground_umd_gps_1',
-  'umcp_lidar5_ground_umd_gps_3',
-  'umcp_lidar5_ground_umd_gps_4',
-  'umcp_lidar5_ground_umd_gps_5',
-  'umcp_lidar5_ground_umd_gps_6',
-  'umcp_lidar5_ground_umd_gps_8',
-  'umcp_lidar5_ground_umd_gps_9',
-  'umcp_lidar5_ground_umd_gps_10',
-  'umcp_lidar5_ground_umd_gps_12']
-
-TEST_SET  = [
-  'umcp_aerial_resized070_01',
-  'umcp_lidar5_ground_umd_gps_2',
-  'umcp_lidar5_ground_umd_gps_7',
-  'umcp_lidar5_ground_umd_gps_11',
-  'umcp_lidar5_ground_umd_gps_15',
-  'umcp_lidar5_ground_umd_gps_16',
-  'umcp_lidar5_ground_umd_gps_17',
-  'umcp_lidar5_ground_umd_gps_18',
-  'umcp_lidar5_ground_umd_gps_19']
 
 #%% Functions
 def readMetas(seq_dir: Path, skip_header=1):
@@ -67,11 +43,12 @@ def construct_training_tuples_new(aerial_training_paths: list,
                                   aerial_training_xys: np.ndarray,
                                   ground_training_paths: list,
                                   ground_training_xys: np.ndarray,
+                                  save_pkl_fn: Path,
                                   save_txt_fn: Path,
-                                  aerial_positive_range=50.0,
-                                  aerial_negative_range=80.0,
-                                  ground_positive_range=20.0,
-                                  ground_negative_range=50.0):
+                                  aerial_positive_range,
+                                  aerial_negative_range,
+                                  ground_positive_range,
+                                  ground_negative_range):
     """ Construct Training Tuples
 
     Args:
@@ -109,23 +86,19 @@ def construct_training_tuples_new(aerial_training_paths: list,
     N_AERIAL = aerial_training_xys.shape[0]
     N_GROUND = ground_training_xys.shape[0]
 
-    f_txt = open(save_txt_fn, 'w')
-    print(f"Training tuples saved in {save_txt_fn}")
-    for i in range(N_AERIAL + N_GROUND):
-        if i < N_AERIAL:
-            line = f"{aerial_paths[i]} {aerial_xys[i,0]:.9f} {aerial_xys[i,1]:.9f}"
+    print(f"Save test file | '{save_txt_fn}'")
+    with open(save_txt_fn, 'w') as f:
+        for i in range(N_AERIAL + N_GROUND):
+            if i < N_AERIAL:
+                line = f"{aerial_training_paths[i]} {aerial_training_xys[i,0]:.9f} {aerial_training_xys[i,1]:.9f}"
+            else:
+                idx = i - N_AERIAL
+                line = f"{ground_training_paths[idx]} {ground_training_xys[idx,0]:.9f} {ground_training_xys[idx,1]:.9f}"
             if i != 0:
                 line = "\n" + line
-            f_txt.write(line)
-        else:
-            idx = i - N_AERIAL
-            line = f"{ground_paths[idx]} {ground_xys[idx,0]:.9f} {ground_xys[idx,1]:.9f}"
-            line = "\n" + line
-            f_txt.write(line)
-    f_txt.close()
+            f.write(line)
 
-    print(f"Training catalog created ...")
-
+    print("Create training catalog with aerial ...")
     for i in tqdm(range(N_AERIAL)):
         idx_dict = {}
         idx_dict['query']    = aerial_training_paths[i]
@@ -135,6 +108,8 @@ def construct_training_tuples_new(aerial_training_paths: list,
         positives = np.concatenate([nn_idxs_aer_from_aer[i],
                                     (nn_idxs_aer_from_gro[i]+N_AERIAL)],
                                    axis=0)
+        print(f"positives: {positives.shape[0]}")
+        print(nn_idxs_aer_from_gro[i]+N_AERIAL)
         positives = positives[positives != i].tolist()
         positives = sorted(positives)
 
@@ -151,6 +126,7 @@ def construct_training_tuples_new(aerial_training_paths: list,
         idx_dict['negatives'] = negatives
         catalog[i] = idx_dict
 
+    print("Create training catalog with ground ...")
     for i in tqdm(range(N_GROUND)):
         idx = i + N_AERIAL
         idx_dict = {}
@@ -161,6 +137,8 @@ def construct_training_tuples_new(aerial_training_paths: list,
         positives = np.concatenate([nn_idxs_gro_from_aer[i],
                                     (nn_idxs_gro_from_gro[i]+N_AERIAL)],
                                    axis=0)
+        print(f"positives: {positives.shape[0]}")
+        print(nn_idxs_gro_from_gro[i]+N_AERIAL)
         positives = positives[positives != idx].tolist()
         positives = sorted(positives)
 
@@ -176,61 +154,67 @@ def construct_training_tuples_new(aerial_training_paths: list,
         idx_dict['positives'] = positives
         idx_dict['negatives'] = negatives
         catalog[idx] = idx_dict
-    print("... END | catalog length: %d" % len(catalog))
 
-    return catalog
+    print(f"Save catalog into pickle file | '{save_pkl_fn}'")
+    with open(save_pkl_fn, 'wb') as handle:
+        pickle.dump(catalog, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
-def construct_evaluation_dbase_n_query(training_set: list,
+
+def construct_evaluation_dbase_n_query(db_aerial_set: list,
+                                       db_ground_set: list,
                                        test_set: list,
-                                       aerial_positive_range=50.0,
-                                       ground_positive_range=20.0):
+                                       save_eval_db_prefix: Path,
+                                       save_eval_query_pkl_fn: Path,
+                                       save_eval_query_txt_fn: Path,
+                                       aerial_positive_range,
+                                       ground_positive_range):
     ############
     # Database #
     ############
     database_catalog = []
-    aerial_dbase_paths, aerial_dbase_xys = readMetas(UMD_DIR / test_set[0])
-    aerial_dbase_dict = {}
-    for i in range(len(aerial_dbase_paths)):
-        aerial_dbase_dict[i] = {
-            'query'   : aerial_dbase_paths[i],
-            'northing': aerial_dbase_xys[i,0],
-            'easting' : aerial_dbase_xys[i,1]
-        }
-    print(f"Database[00] size: {len(aerial_dbase_dict)}")
-    dbase_txt_fn = BENCHMARK_DIR / 'umd_evaluation_dbase_00_new.text'
-    print(f"=> Saved in {dbase_txt_fn}")
-    with open(dbase_txt_fn, 'w') as f:
-        for i in range(len(aerial_dbase_paths)):
-            line = f"{aerial_dbase_paths[i]} {aerial_dbase_xys[i,0]:.9f} {aerial_dbase_xys[i,1]:.9f}"
-            if i != 0:
-                line = "\n" + line
-            f.write(line)
-    database_catalog.append(aerial_dbase_dict)
-
-    for di in range(1, len(training_set)):
-        ground_dbase_paths, ground_dbase_xys = readMetas(UMD_DIR / training_set[di])
-        ground_dbase_dict = {}
-
-        for i in range(len(ground_dbase_paths)):
-            ground_dbase_dict[i] = {
-                'query'   : ground_dbase_paths[i],
-                'northing': ground_dbase_xys[i,0],
-                'easting' : ground_dbase_xys[i,1]
+    di = 0
+    for seq_name in db_aerial_set:
+        dbase_paths, dbase_xys = readMetas(UMD_DIR / seq_name)
+        dbase_dict = {}
+        for i in range(len(dbase_paths)):
+            dbase_dict[i] = {
+                'query'   : dbase_paths[i],
+                'northing': dbase_xys[i,0],
+                'easting' : dbase_xys[i,1]
             }
-
-        dbase_txt_fn = BENCHMARK_DIR / f'umd_evaluation_dbase_{di:02d}_new.text'
-        print(f"=> Saved in {dbase_txt_fn}")
+        dbase_txt_fn = str(save_eval_db_prefix) + f"_{di:02d}.txt"
+        print(f"[DBase{di:02d}] ({len(dbase_dict):5d}s) Save txt in '{dbase_txt_fn}'")
         with open(dbase_txt_fn, 'w') as f:
-            for i in range(len(ground_dbase_paths)):
-                line = f"{ground_dbase_paths[i]} {ground_dbase_xys[i,0]:.9f} {ground_dbase_xys[i,1]:.9f}"
+            for i in range(len(dbase_paths)):
+                line = f"{dbase_paths[i]} {dbase_xys[i,0]:.9f} {dbase_xys[i,1]:.9f}"
                 if i != 0:
                     line = "\n" + line
                 f.write(line)
+        database_catalog.append(dbase_dict)
+        di += 1
 
-        print(f"DataBase [{di:02d}] size: {len(ground_dbase_dict)}")
-        database_catalog.append(ground_dbase_dict)
+    for seq_name in db_ground_set:
+        dbase_paths, dbase_xys = readMetas(UMD_DIR / seq_name)
+        dbase_dict = {}
+        for i in range(len(dbase_paths)):
+            dbase_dict[i] = {
+                'query'   : dbase_paths[i],
+                'northing': dbase_xys[i,0],
+                'easting' : dbase_xys[i,1]
+            }
+        dbase_txt_fn = str(save_eval_db_prefix) + f"_{di:02d}.txt"
+        print(f"[DBase{di:02d}] ({len(dbase_dict):5d}s) Save txt in '{dbase_txt_fn}'")
+        with open(dbase_txt_fn, 'w') as f:
+            for i in range(len(dbase_paths)):
+                line = f"{dbase_paths[i]} {dbase_xys[i,0]:.9f} {dbase_xys[i,1]:.9f}"
+                if i != 0:
+                    line = "\n" + line
+                f.write(line)
+        database_catalog.append(dbase_dict)
+        di += 1
 
-    dbase_pkl_fn = BENCHMARK_DIR / 'umd_evaluation_database_new.pickle'
+    dbase_pkl_fn = str(save_eval_db_prefix) + f".pickle"
+    print(f"[DBase] Save catalog in '{dbase_pkl_fn}'")
     with open(dbase_pkl_fn, 'wb') as handle:
         pickle.dump(database_catalog, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
@@ -239,27 +223,38 @@ def construct_evaluation_dbase_n_query(training_set: list,
     ###########
     queries_paths = []
     queries_xys = []
-    for i in range(1, len(test_set)):
-        tmp_ground_paths, tmp_ground_xys= readMetas(UMD_DIR / test_set[i])
+    for seq_name in test_set:
+        tmp_ground_paths, tmp_ground_xys= readMetas(UMD_DIR / seq_name)
         for j in range(len(tmp_ground_paths)):
             queries_paths.append(tmp_ground_paths[j])
         queries_xys.append(tmp_ground_xys)
     queries_xys = np.concatenate(queries_xys, axis=0)
-    queries_txt_fn = BENCHMARK_DIR / 'umd_evaluation_query_new.text'
-    print(f"queries_paths: {len(queries_paths)}")
-    print(f"queries_xys: {queries_xys.shape[0]}")
-    print(f"=> Saved in {queries_txt_fn}")
-    with open(queries_txt_fn, 'w') as f:
+
+    print(f"[Query] ({len(queries_paths):4d}s) Save txt in '{save_eval_query_txt_fn}'")
+    with open(save_eval_query_txt_fn, 'w') as f:
         for i in range(len(queries_paths)):
             line = f"{queries_paths[i]} {queries_xys[i,0]:.9f} {queries_xys[i,1]:.9f}"
             if i != 0:
                 line = "\n" + line
             f.write(line)
 
+    dbase_trees = []
+    for seq_name in db_aerial_set:
+        dbase_paths, dbase_xys = readMetas(UMD_DIR / seq_name)
+        tree = KDTree(dbase_xys)
+        dbase_trees.append(tree)
+    for seq_name in db_ground_set:
+        dbase_paths, dbase_xys = readMetas(UMD_DIR / seq_name)
+        tree = KDTree(dbase_xys)
+        dbase_trees.append(tree)
+    n_aerial = len(db_aerial_set)
+    n_ground = len(db_ground_set)
+    n_dbase = n_aerial + n_ground
+    assert n_dbase == len(dbase_trees)
+
     queries_catalog = []
     queries_list = []
     n_matches = 0
-    n_matches_per_db = [0] * len(training_set)
     for qi in tqdm(range(len(queries_paths))):
         query_path = queries_paths[qi]
         query_xy   = queries_xys[qi].reshape((1,2))
@@ -269,60 +264,223 @@ def construct_evaluation_dbase_n_query(training_set: list,
         query_dict['easting']  = queries_xys[0,1]
 
         # Aerial
-        dbase_paths, dbase_xys = readMetas(UMD_DIR / test_set[0])
-        tree = KDTree(dbase_xys)
-        nn_idxs = tree.query_radius(query_xy, r=aerial_positive_range)
-        query_dict[0] = nn_idxs[0].tolist()
-        n_matches += len(query_dict[0])
-        n_matches_per_db[0] += len(query_dict[0])
-        # Ground
-        for i in range(1, len(training_set)):
-            dbase_paths, dbase_xys = readMetas(UMD_DIR / training_set[i])
-            tree = KDTree(dbase_xys)
-            nn_idxs = tree.query_radius(query_xy, r=ground_positive_range)
+        for i in range(n_aerial):
+            nn_idxs = dbase_trees[i].query_radius(query_xy, r=aerial_positive_range)
             query_dict[i] = nn_idxs[0].tolist()
             n_matches += len(query_dict[i])
-            n_matches_per_db[i] += len(query_dict[i])
+        # Ground
+        for i in range(n_aerial, n_dbase):
+            nn_idxs = dbase_trees[i].query_radius(query_xy, r=ground_positive_range)
+            query_dict[i] = nn_idxs[0].tolist()
+            n_matches += len(query_dict[i])
 
         queries_list.append(query_dict)
     queries_catalog.append(queries_list)
-    print(f"Query Catalog[0] size: {len(queries_list)} | matches: ({n_matches})")
-    print(f"n_matches_per_db:\n{n_matches_per_db}")
-    query_pkl_fn = BENCHMARK_DIR / 'umd_evaluation_query_new.pickle'
-    with open(query_pkl_fn, 'wb') as handle:
+
+    print(f"[Query] Save catalog pickle in '{save_eval_query_pkl_fn}' | size: {len(queries_list)} | matches: ({n_matches})")
+    with open(save_eval_query_pkl_fn, 'wb') as handle:
         pickle.dump(queries_catalog, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
 
 #%% Main - training
-aerial_paths, aerial_xys = readMetas(UMD_DIR / TRAIN_SET[0])
-ground_paths = []
-ground_xys = []
-for i in range(1, len(TRAIN_SET)):
-    tmp_ground_paths, tmp_ground_xys= readMetas(UMD_DIR / TRAIN_SET[i])
-    for j in range(len(tmp_ground_paths)):
-        ground_paths.append(tmp_ground_paths[j])
-    ground_xys.append(tmp_ground_xys)
-ground_xys = np.concatenate(ground_xys, axis=0)
-print(f"ground_paths: {len(ground_paths)}")
-print(f"ground_xys: {ground_xys.shape[0]}")
 
-save_pkl_fn = BENCHMARK_DIR / 'training_queries_umd_4096_new.pickle'
-save_txt_fn = BENCHMARK_DIR / 'training_queries_umd_4096_new.txt'
-catalog = construct_training_tuples_new(aerial_paths,
-                                        aerial_xys,
-                                        ground_paths,
-                                        ground_xys,
-                                        save_txt_fn)
-with open(save_pkl_fn, 'wb') as handle:
-    pickle.dump(catalog, handle, protocol=pickle.HIGHEST_PROTOCOL)
+def main(train_both:bool, scale:float=1.0):
+    aerial_00 = f"umcp_aerial_resized{int(scale*100.0):03d}_00"
+    aerial_01 = f"umcp_aerial_resized{int(scale*100.0):03d}_01"
+    # print(f"aerial_00: {aerial_00}")
+    # print(f"aerial_01: {aerial_01}")
 
-#%% Main - dbase & query
+    TRAIN_SET = []
+    if train_both:
+        TRAIN_SET.append(aerial_00)
+        TRAIN_SET.append(aerial_01)
+    else:
+        TRAIN_SET.append(aerial_00)
+    TRAIN_SET.append('umcp_lidar5_ground_umd_gps_1')
+    TRAIN_SET.append('umcp_lidar5_ground_umd_gps_3')
+    TRAIN_SET.append('umcp_lidar5_ground_umd_gps_4')
+    TRAIN_SET.append('umcp_lidar5_ground_umd_gps_5')
+    TRAIN_SET.append('umcp_lidar5_ground_umd_gps_6')
+    TRAIN_SET.append('umcp_lidar5_ground_umd_gps_8')
+    TRAIN_SET.append('umcp_lidar5_ground_umd_gps_9')
+    TRAIN_SET.append('umcp_lidar5_ground_umd_gps_10')
+    TRAIN_SET.append('umcp_lidar5_ground_umd_gps_12')
 
-construct_evaluation_dbase_n_query(TRAIN_SET, TEST_SET)
+    TEST_SET = []
+    TEST_SET.append('umcp_lidar5_ground_umd_gps_2')
+    TEST_SET.append('umcp_lidar5_ground_umd_gps_7')
+    TEST_SET.append('umcp_lidar5_ground_umd_gps_11')
+    TEST_SET.append('umcp_lidar5_ground_umd_gps_15')
+    TEST_SET.append('umcp_lidar5_ground_umd_gps_16')
+    TEST_SET.append('umcp_lidar5_ground_umd_gps_17')
+    TEST_SET.append('umcp_lidar5_ground_umd_gps_18')
+    TEST_SET.append('umcp_lidar5_ground_umd_gps_19')
+
+    DB_AERIAL_SET = [aerial_00, aerial_01]
+    DB_GROUND_SET = []
+    DB_GROUND_SET.append('umcp_lidar5_ground_umd_gps_1')
+    DB_GROUND_SET.append('umcp_lidar5_ground_umd_gps_3')
+    DB_GROUND_SET.append('umcp_lidar5_ground_umd_gps_4')
+    DB_GROUND_SET.append('umcp_lidar5_ground_umd_gps_5')
+    DB_GROUND_SET.append('umcp_lidar5_ground_umd_gps_6')
+    DB_GROUND_SET.append('umcp_lidar5_ground_umd_gps_8')
+    DB_GROUND_SET.append('umcp_lidar5_ground_umd_gps_9')
+    DB_GROUND_SET.append('umcp_lidar5_ground_umd_gps_10')
+    DB_GROUND_SET.append('umcp_lidar5_ground_umd_gps_12')
+    # # For Debugging
+    # print("[Training]")
+    # for e in TRAIN_SET:
+    #     print(e)
+    # print("\n[Test]")
+    # for e in TEST_SET:
+    #     print(e)
+
+    aerial_paths = None
+    aerial_xys = None
+    if train_both:
+        aerial_paths = []
+        aerial_xys = []
+        aerial_paths_00, aerial_xys_00 = readMetas(UMD_DIR / TRAIN_SET[0])
+        aerial_paths_01, aerial_xys_01 = readMetas(UMD_DIR / TRAIN_SET[1])
+        for path in aerial_paths_00:
+            aerial_paths.append(path)
+        for path in aerial_paths_01:
+            aerial_paths.append(path)
+        aerial_xys.append(aerial_xys_00)
+        aerial_xys.append(aerial_xys_01)
+        aerial_xys = np.concatenate(aerial_xys, axis=0)
+    else:
+        aerial_paths, aerial_xys = readMetas(UMD_DIR / TRAIN_SET[0])
+        aerial_paths_01, aerial_xys_01 = readMetas(UMD_DIR / TRAIN_SET[1])
+
+    # # For Debugging
+    # print(f"aerial_paths length: {len(aerial_paths)}")
+    # print(f"aerial_xys.shape: {aerial_xys.shape}")
+
+    ground_paths = []
+    ground_xys = []
+    ground_set = TRAIN_SET[2:] if train_both else TRAIN_SET[1:]
+    for seq_name in ground_set:
+        tmp_ground_paths, tmp_ground_xys= readMetas(UMD_DIR / seq_name)
+        for j in range(len(tmp_ground_paths)):
+            ground_paths.append(tmp_ground_paths[j])
+        ground_xys.append(tmp_ground_xys)
+    ground_xys = np.concatenate(ground_xys, axis=0)
+
+    # # For Debugging
+    # print(f"ground_paths length: {len(ground_paths)}")
+    # print(f"ground_xys.shape: ground_xys.shape}")
+
+    save_pkl_fn = None
+    save_txt_fn = None
+    save_eval_db_prefix = ""
+    save_eval_query_pkl_fn = ""
+    save_eval_query_txt_fn = ""
+    if train_both:
+        save_pkl_fn = BENCHMARK_DIR / f"training_both_scale{int(scale*100.0):03d}.pickle"
+        save_txt_fn = BENCHMARK_DIR / f"training_both_scale{int(scale*100.0):03d}.txt"
+        save_eval_db_prefix    = BENCHMARK_DIR / f"evaluation_dbase_both_scale{int(scale*100.0):03d}"
+        save_eval_query_pkl_fn = BENCHMARK_DIR / f"evaluation_query_both_scale{int(scale*100.0):03d}.pickle"
+        save_eval_query_txt_fn = BENCHMARK_DIR / f"evaluation_query_both_scale{int(scale*100.0):03d}.txt"
+    else:
+        save_pkl_fn = BENCHMARK_DIR / f"training_solo_scale{int(scale*100.0):03d}.pickle"
+        save_txt_fn = BENCHMARK_DIR / f"training_solo_scale{int(scale*100.0):03d}.txt"
+        save_eval_db_prefix    = BENCHMARK_DIR / f"evaluation_dbase_solo_scale{int(scale*100.0):03d}"
+        save_eval_query_pkl_fn = BENCHMARK_DIR / f"evaluation_query_solo_scale{int(scale*100.0):03d}.pickle"
+        save_eval_query_txt_fn = BENCHMARK_DIR / f"evaluation_query_solo_scale{int(scale*100.0):03d}.txt"
+
+    iscale = int(scale*100.0)
+    if iscale == 100:
+        aprange =  80.0
+        anrange = 120.0
+        gprange =  20.0
+        gnrange =  50.0
+        construct_training_tuples_new(aerial_paths, aerial_xys,
+                                      ground_paths, ground_xys,
+                                      save_pkl_fn,  save_txt_fn,
+                                      aerial_positive_range=aprange,
+                                      aerial_negative_range=anrange,
+                                      ground_positive_range=gprange,
+                                      ground_negative_range=gnrange)
+        construct_evaluation_dbase_n_query(DB_AERIAL_SET, DB_GROUND_SET, TEST_SET,
+                                           save_eval_db_prefix,
+                                           save_eval_query_pkl_fn,
+                                           save_eval_query_txt_fn,
+                                           aerial_positive_range=aprange,
+                                           ground_positive_range=gprange)
+    elif iscale == 80:
+        aprange =  70.0
+        anrange = 100.0
+        gprange =  20.0
+        gnrange =  50.0
+        construct_training_tuples_new(aerial_paths, aerial_xys,
+                                      ground_paths, ground_xys,
+                                      save_pkl_fn,  save_txt_fn,
+                                      aerial_positive_range=aprange,
+                                      aerial_negative_range=anrange,
+                                      ground_positive_range=gprange,
+                                      ground_negative_range=gnrange)
+        construct_evaluation_dbase_n_query(DB_AERIAL_SET, DB_GROUND_SET, TEST_SET,
+                                           save_eval_db_prefix,
+                                           save_eval_query_pkl_fn,
+                                           save_eval_query_txt_fn,
+                                           aerial_positive_range=aprange,
+                                           ground_positive_range=gprange)
+    elif iscale == 70:
+        aprange = 50.0
+        anrange = 80.0
+        gprange = 20.0
+        gnrange = 50.0
+        construct_training_tuples_new(aerial_paths, aerial_xys,
+                                      ground_paths, ground_xys,
+                                      save_pkl_fn,  save_txt_fn,
+                                      aerial_positive_range=aprange,
+                                      aerial_negative_range=anrange,
+                                      ground_positive_range=gprange,
+                                      ground_negative_range=gnrange)
+        construct_evaluation_dbase_n_query(DB_AERIAL_SET, DB_GROUND_SET, TEST_SET,
+                                           save_eval_db_prefix,
+                                           save_eval_query_pkl_fn,
+                                           save_eval_query_txt_fn,
+                                           aerial_positive_range=aprange,
+                                           ground_positive_range=gprange)
+    elif iscale == 60:
+        aprange = 40.0
+        anrange = 70.0
+        gprange = 20.0
+        gnrange = 50.0
+        construct_training_tuples_new(aerial_paths, aerial_xys,
+                                      ground_paths, ground_xys,
+                                      save_pkl_fn,  save_txt_fn,
+                                      aerial_positive_range=aprange,
+                                      aerial_negative_range=anrange,
+                                      ground_positive_range=gprange,
+                                      ground_negative_range=gnrange)
+        construct_evaluation_dbase_n_query(DB_AERIAL_SET, DB_GROUND_SET, TEST_SET,
+                                           save_eval_db_prefix,
+                                           save_eval_query_pkl_fn,
+                                           save_eval_query_txt_fn,
+                                           aerial_positive_range=aprange,
+                                           ground_positive_range=gprange)
+    else:
+        print(f"Unvalid iscale: {iscale}")
 
 
 #%%
+# main(train_both=True,
+#      scale=0.6)
+main(train_both=False,
+     scale=0.7)
+# main(train_both=True,
+#      scale=0.7)
+# main(train_both=True,
+#      scale=0.8)
+# main(train_both=True,
+#      scale=1.0)
 
+#%%
+
+# exit(0)
 
 training_catalog_fn = CATALOG_V2_DIR / 'training_catalog_ver2.txt'
 training_paths, training_xys = load_meta(training_catalog_fn)

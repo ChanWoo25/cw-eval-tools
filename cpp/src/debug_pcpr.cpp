@@ -488,6 +488,7 @@ void main_base(const int & dbase_index)
 
 
   cwcloud::CloudVisualizer vis("debug_pcpr", 2, 3);
+  const double pixel_sz = 2.0;
   const auto di = dbase_index;
   const int QI_MIN = 0;
   const int QI_MAX = 1058;
@@ -506,12 +507,14 @@ void main_base(const int & dbase_index)
       const auto scan_fn = benchmark_dir / query_catalog[qi].path;
       const auto scan = readCloudXyz64(scan_fn.string());
       // spdlog::info("read scan from {} | n_points: {}", scan_fn.string(), scan.size());
-      vis.setCloudXYZ(scan, 1, 0);
+      vis.setCloudXYZ(scan, 1, 0, pixel_sz);
       vis.setCloudXYZ(pcl::PointCloud<pcl::PointXYZ>(), 1, 1);
       vis.setCloudXYZ(pcl::PointCloud<pcl::PointXYZ>(), 0, 0);
       vis.setCloudXYZ(pcl::PointCloud<pcl::PointXYZ>(), 0, 1);
       vis.setCloudXYZ(pcl::PointCloud<pcl::PointXYZ>(), 0, 2);
     }
+
+    const auto qmeta = query_catalog[qi];
 
     if (state_vec[qi] == "None")
     {
@@ -519,11 +522,13 @@ void main_base(const int & dbase_index)
     }
     else if (state_vec[qi] == "Find")
     {
-      spdlog::info("[Q-{:04d}] T-{:-4d}", qi, pos_vec[qi]);
+      spdlog::info(
+        "[Q-{:04d}][{}]({:.3f}, {:.3f}) T-{:-4d}",
+        qi, qmeta.path, qmeta.northing, qmeta.easting, pos_vec[qi]);
       { /*  Register Positive Cloud */
         const auto scan_fn = benchmark_dir / sub_dbase_catalog[pos_vec[qi]].path;
         const auto scan = readCloudXyz64(scan_fn.string());
-        vis.setCloudXYZ(scan, 1, 1);
+        vis.setCloudXYZ(scan, 1, 1, pixel_sz);
       }
       if (!neg_vec[qi].empty())
       { /*  Register Negative Clouds */
@@ -532,7 +537,7 @@ void main_base(const int & dbase_index)
           const auto scan_fn = benchmark_dir / sub_dbase_catalog[neg_vec[qi][nj]].path;
           const auto scan = readCloudXyz64(scan_fn.string());
           const int col = static_cast<int>(nj - ni);
-          vis.setCloudXYZ(scan, 0, col);
+          vis.setCloudXYZ(scan, 0, col, pixel_sz);
           if (col >= 2) { break; }
         }
       }
@@ -540,7 +545,9 @@ void main_base(const int & dbase_index)
     else if (state_vec[qi] == "Fail")
     {
       vis.setCloudXYZ(pcl::PointCloud<pcl::PointXYZ>(), 1, 1);
-      spdlog::info("[Q-{:04d}] Fail", qi);
+      spdlog::info(
+        "[Q-{:04d}][{}]({:.3f}, {:.3f}) Fail",
+        qi, qmeta.path, qmeta.northing, qmeta.easting);
       if (!neg_vec[qi].empty())
       { /*  Register Negative Clouds */
         for (size_t nj = ni; nj < neg_vec[qi].size(); nj++)
@@ -548,7 +555,7 @@ void main_base(const int & dbase_index)
           const auto scan_fn = benchmark_dir / sub_dbase_catalog[neg_vec[qi][nj]].path;
           const auto scan = readCloudXyz64(scan_fn.string());
           const int col = static_cast<int>(nj - ni);
-          vis.setCloudXYZ(scan, 0, col);
+          vis.setCloudXYZ(scan, 0, col, pixel_sz);
           if (col >= 2) { break; }
         }
       }
