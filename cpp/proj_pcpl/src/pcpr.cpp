@@ -1,6 +1,8 @@
 #include <pcpr.hpp>
 #include <random>
 
+namespace pcpr {
+
 auto vec3dToPtXyz(
   const Eigen::Vector3d & vec)
   -> pcl::PointXYZ
@@ -207,6 +209,129 @@ auto readScanList(
   return meta_vec;
 }
 
+auto read_scan_list_boreas(
+  const fs::path & list_fn,
+  const double & skip_len)
+  -> MetaVec
+{
+  MetaVec meta_vec;
+  cxxutil::CSVRow csv_row;
+  constexpr size_t N_COL = 13UL;
+
+  double x_min = std::numeric_limits<double>::max();
+  double x_max = std::numeric_limits<double>::min();
+  double y_min = std::numeric_limits<double>::max();
+  double y_max = std::numeric_limits<double>::min();
+  double total_len = 0.0;
+  size_t total_line = 0UL;
+  size_t skiped_line = 0UL;
+
+  std::ifstream fin(list_fn);
+  fin >> csv_row; // Throw header
+  while (true)    // Main
+  {
+    fin >> csv_row;
+    if (csv_row.size() < N_COL) { break; }
+    ++total_line;
+    const auto path = std::string(csv_row[0]) + ".bin";
+    const auto northing = std::stod(std::string(csv_row[1]));
+    const auto easting  = std::stod(std::string(csv_row[2]));
+
+    if (skip_len > 0.0 && !meta_vec.empty())
+    {
+      const auto dist2back = std::sqrt(
+          std::pow(meta_vec.back().northing - northing, 2.0)
+        + std::pow(meta_vec.back().easting  - easting, 2.0));
+      if (dist2back < skip_len) { continue; }
+    }
+
+    x_min = (northing < x_min) ? (northing) : (x_min);
+    x_max = (northing > x_max) ? (northing) : (x_max);
+    y_min = (easting < y_min) ? (easting) : (y_min);
+    y_max = (easting > y_max) ? (easting) : (y_max);
+    if (!meta_vec.empty())
+    {
+      total_len += std::sqrt(
+          std::pow(meta_vec.back().northing - northing, 2.0)
+        + std::pow(meta_vec.back().easting  - easting, 2.0));
+    }
+    meta_vec.emplace_back(path, northing, easting);
+    ++skiped_line;
+  }
+  fin.close();
+  spdlog::info("x range: {:.3f} ~ {:.3f}", x_min, x_max);
+  spdlog::info("y range: {:.3f} ~ {:.3f}", y_min, y_max);
+  spdlog::info("total_length: {:.3f}", total_len);
+  spdlog::info("total_line: {}", total_line);
+  spdlog::info("skiped_line: {}", skiped_line);
+  return meta_vec;
+}
+
+static
+float getFloatFromByteArray(
+  char *byteArray, uint index)
+{
+  return *((float *)(byteArray + index));
+}
+
+auto read_boreas_scan(
+  const std::string & scan_fn,
+  const double & ground_z,
+  const double & sphere)
+  ->pcl::PointCloud<pcl::PointXYZ>
+{
+  std::fstream f_bin(scan_fn, std::ios::in | std::ios::binary);
+  std::vector<char> buffer(std::istreambuf_iterator<char>(f_bin), {});
+  uint float_offset = 4;
+  uint fields = 6; // x, y, z, i, r, t
+  uint point_step = float_offset * fields;
+  uint N = floor(buffer.size() / point_step);
+
+  pcl::PointCloud<pcl::PointXYZ> cloud;
+
+#pragma omp parallel
+  for (uint i = 0; i < N; ++i)
+  {
+    pcl::PointXYZ point;
+    uint bufpos = i * point_step;
+    point.x = getFloatFromByteArray(buffer.data(), bufpos + 0 * float_offset);
+    point.y = getFloatFromByteArray(buffer.data(), bufpos + 1 * float_offset);
+    point.z = getFloatFromByteArray(buffer.data(), bufpos + 2 * float_offset);
+
+    auto dist = std::sqrt(point.x * point.x
+                        + point.y * point.y
+                        + point.z * point.z);
+    if (point.z > ground_z && dist < sphere)
+    {
+      cloud.push_back(point);
+    }
+  }
+
+  // f_bin.seekg(0, std::ios::end);
+  // const size_t num_elements = f_bin.tellg() / sizeof(float);
+  // std::vector<float> buf(num_elements);
+  // f_bin.seekg(0, std::ios::beg);
+  // f_bin.read(
+  //   reinterpret_cast<char *>(
+  //     &buf[0]),
+  //     num_elements * sizeof(float));
+  // f_bin.close();
+
+  // pcl::PointCloud<pcl::PointXYZI> cloud;
+  // for (std::size_t i = 0; i < buf.size(); i += 6)
+  // { // x, y, z, i, r, t
+  //   pcl::PointXYZI point;
+  //   point.x = buf[i];
+  //   point.y = buf[i + 1];
+  //   point.z = buf[i + 2];
+  //   point.intensity = buf[i + 3];
+  //   if (point.z > ground_z)
+  //   {
+  //     cloud.push_back(point);
+  //   }
+  // }
+  return cloud;
+}
 
 auto readCloudXyz64(
   const std::string & scan_fn)
@@ -249,6 +374,25 @@ void writeCloudXyz64(
     f_scan.write(reinterpret_cast<const char *>(&point.x), sizeof(double));
     f_scan.write(reinterpret_cast<const char *>(&point.y), sizeof(double));
     f_scan.write(reinterpret_cast<const char *>(&point.z), sizeof(double));
+  }
+  f_scan.close();
+}
+
+void write_cloud_xyzi_float(
+  const std::string & scan_fn,
+  const pcl::PointCloud<pcl::PointXYZI> & cloud)
+{
+  std::ofstream f_scan(scan_fn, std::ios::out | std::ios::binary);
+  for (const auto & point : cloud.points)
+  {
+    const auto & px = point.x;
+    const auto & py = point.y;
+    const auto & pz = point.z;
+    const auto & pi = point.intensity;
+    f_scan.write(reinterpret_cast<const char *>(&px), sizeof(float));
+    f_scan.write(reinterpret_cast<const char *>(&py), sizeof(float));
+    f_scan.write(reinterpret_cast<const char *>(&pz), sizeof(float));
+    f_scan.write(reinterpret_cast<const char *>(&pi), sizeof(float));
   }
   f_scan.close();
 }
@@ -303,3 +447,5 @@ auto scalingCloud(
 
   return new_cloud;
 }
+
+}; // namespace pcpr

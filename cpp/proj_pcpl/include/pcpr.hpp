@@ -19,6 +19,8 @@
 #include <filesystem>
 namespace fs = std::filesystem;
 
+namespace pcpr {
+
 auto vec3dToPtXyz(
   const Eigen::Vector3d & vec)
   -> pcl::PointXYZ;
@@ -80,6 +82,23 @@ auto readScanList(
   const double & skip_len=-1.0)
   -> MetaVec;
 
+/**
+ * @brief read boreas dataset lidar_poses.csv format
+ * => GPSTime,easting,northing,altitude,vel_east,vel_north,vel_up,roll,pitch,heading,angvel_z,angvel_y,angvel_x
+ * Skip 1 header.
+ * Each row has 13 elements.
+ */
+auto read_scan_list_boreas(
+  const fs::path & list_fn,
+  const double & skip_len)
+  -> MetaVec;
+
+auto read_boreas_scan(
+  const std::string & scan_fn,
+  const double & ground_z,
+  const double & sphere)
+  ->pcl::PointCloud<pcl::PointXYZ>;
+
 auto readCloudXyz64(
   const std::string & scan_fn)
   -> pcl::PointCloud<pcl::PointXYZ>;
@@ -88,9 +107,15 @@ void writeCloudXyz64(
   const std::string & scan_fn,
   const pcl::PointCloud<pcl::PointXYZ> & cloud);
 
+void write_cloud_xyzi_float(
+  const std::string & scan_fn,
+  const pcl::PointCloud<pcl::PointXYZI> & cloud);
+
 auto scalingCloud(
   const pcl::PointCloud<pcl::PointXYZ> & cloud,
   const double & scale)
   -> pcl::PointCloud<pcl::PointXYZ>;
+
+}; // namespace pcpr
 
 #endif
