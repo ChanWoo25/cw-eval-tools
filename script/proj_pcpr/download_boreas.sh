@@ -1,6 +1,43 @@
 #!/bin/bash
 root=/data/datasets/dataset_boreas
 
+
+#T Overcast, Snow
+aws s3 sync s3://boreas/boreas-2020-11-26-13-58  $root/boreas-2020-11-26-13-58 --exclude "*" --include "applanix/*" --no-sign-request
+# Overcast, Snow
+aws s3 sync s3://boreas/boreas-2020-12-04-14-00  $root/boreas-2020-12-04-14-00 --exclude "*" --include "applanix/*" --no-sign-request
+# Overcast, Snow, Snowing
+aws s3 sync s3://boreas/boreas-2021-01-26-10-59  $root/boreas-2021-01-26-10-59 --exclude "*" --include "applanix/*" --no-sign-request
+# Overcast, Snow, Snowing
+aws s3 sync s3://boreas/boreas-2021-01-26-11-22  $root/boreas-2021-01-26-11-22 --exclude "*" --include "applanix/*" --no-sign-request
+# Sun, Clouds, Snow
+aws s3 sync s3://boreas/boreas-2021-02-09-12-55  $root/boreas-2021-02-09-12-55 --exclude "*" --include "applanix/*" --no-sign-request
+# Sun
+aws s3 sync s3://boreas/boreas-2021-03-09-14-23  $root/boreas-2021-03-09-14-23 --exclude "*" --include "applanix/*" --no-sign-request
+# Clouds, Snowing, Construction
+aws s3 sync s3://boreas/boreas-2021-04-22-15-00  $root/boreas-2021-04-22-15-00 --exclude "*" --include "applanix/*" --no-sign-request
+# Overcast, Rain
+aws s3 sync s3://boreas/boreas-2021-06-29-18-53  $root/boreas-2021-06-29-18-53 --exclude "*" --include "applanix/*" --no-sign-request
+# Sun, Clouds, Dusk
+aws s3 sync s3://boreas/boreas-2021-06-29-20-43  $root/boreas-2021-06-29-20-43 --exclude "*" --include "applanix/*" --no-sign-request
+# Night
+aws s3 sync s3://boreas/boreas-2021-09-08-21-00  $root/boreas-2021-09-08-21-00 --exclude "*" --include "applanix/*" --no-sign-request
+# Sun, Clouds, Alternate, Construction
+aws s3 sync s3://boreas/boreas-2021-09-09-15-28  $root/boreas-2021-09-09-15-28 --exclude "*" --include "applanix/*" --no-sign-request
+# Night
+aws s3 sync s3://boreas/boreas-2021-09-14-20-00  $root/boreas-2021-09-14-20-00 --exclude "*" --include "applanix/*" --no-sign-request
+# Overcast
+aws s3 sync s3://boreas/boreas-2021-10-05-15-35  $root/boreas-2021-10-05-15-35 --exclude "*" --include "applanix/*" --no-sign-request
+# Overcast, Rain
+aws s3 sync s3://boreas/boreas-2021-10-26-12-35  $root/boreas-2021-10-26-12-35 --exclude "*" --include "applanix/*" --no-sign-request
+# Night
+aws s3 sync s3://boreas/boreas-2021-11-06-18-55  $root/boreas-2021-11-06-18-55 --exclude "*" --include "applanix/*" --no-sign-request
+# Overcast, Snow, Snowing
+aws s3 sync s3://boreas/boreas-2021-11-28-09-18  $root/boreas-2021-11-28-09-18 --exclude "*" --include "applanix/*" --no-sign-request
+
+
+
+
 #************************#
 #* Section 1 (Total 16) *#
 #************************#

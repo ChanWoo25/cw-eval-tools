@@ -36,9 +36,17 @@ auto read_boreas_scan(
 
 void preprocess_boreas(
   const fs::path & root_dir,
+  const std::vector<std::string> & seqs,
   const std::string & mode,
   const int & n_samples,
+  const double & ground,
+  const double & sphere,
   const double & interval);
+
+auto downsampling_xyz(
+  const pcl::PointCloud<pcl::PointXYZ> & origin_cloud,
+  const size_t & target_size)
+  -> pcl::PointCloud<pcl::PointXYZ>;
 
 }; // namespace pcpr
 

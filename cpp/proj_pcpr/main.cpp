@@ -19,16 +19,23 @@ void main_preprocess(const ArgumentParser & args)
 {
   const auto dataset = args.get<std::string>("dataset");
   const auto root_dir = fs::path(args.get<std::string>("root_dir"));
+  const auto seqs = args.get<std::vector<std::string>>("--seq");  // {"red", "green", "blue"}
+
   const auto mode = args.get<std::string>("mode");
   const auto n_samples = args.get<int>("n_samples");
+  const auto ground = args.get<double>("ground");
+  const auto sphere = args.get<double>("sphere");
   const auto interval = args.get<double>("interval");
 
   if (dataset == "boreas")
   {
     pcpr::preprocess_boreas(
       root_dir,
+      seqs,
       mode,
       n_samples,
+      ground,
+      sphere,
       interval);
   }
 }
@@ -91,10 +98,22 @@ auto main(int argc, char * argv[]) -> int32_t
     .help("The number of points to remain")
     .default_value(4096)
     .scan<'i', int>();
+  command_preprocess.add_argument("-g", "--ground")
+    .help("The height of ground in meter")
+    .default_value(-3.0)
+    .scan<'g', double>();
+  command_preprocess.add_argument("-s", "--sphere")
+    .help("The radius of accept sphere")
+    .default_value(180.0)
+    .scan<'g', double>();
   command_preprocess.add_argument("-i", "--interval")
     .help("The sampling interval length in meter")
-    .default_value(10.0)
+    .default_value(-1.0)
     .scan<'g', double>();
+  command_preprocess.add_argument("--seq")
+    .default_value<std::vector<std::string>>({""})
+    .append()
+    .help("List sequense names you want to preprocess.");
 
   ArgumentParser command_show("show");
   command_show.add_description(
@@ -142,6 +161,10 @@ auto main(int argc, char * argv[]) -> int32_t
     spdlog::info("[main-show] Starts ...");
     const auto & args = program.at<ArgumentParser>("show");
     main_show(args);
+  }
+  else
+  {
+    std::cerr << program;
   }
 
   return EXIT_SUCCESS;

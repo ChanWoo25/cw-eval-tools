@@ -16,8 +16,44 @@
 
 #include <string>
 #include <fstream>
+#include <functional> // For std::hash
+#include <vector>
 #include <filesystem>
+#include <random>
+#include <algorithm>
+#include <tuple>
+#include <memory>
 namespace fs = std::filesystem;
+
+#define HASH_P 116101
+#define MAX_N 10000000000
+
+struct M_POINT {
+  float xyz[3];
+  float intensity;
+  int count = 0;
+};
+
+class VOXEL_LOC {
+public:
+  int64_t x, y, z;
+
+  VOXEL_LOC(int64_t vx = 0, int64_t vy = 0, int64_t vz = 0)
+      : x(vx), y(vy), z(vz) {}
+
+  bool operator==(const VOXEL_LOC &other) const {
+    return (x == other.x && y == other.y && z == other.z);
+  }
+};
+
+// Hash value
+template <> struct std::hash<VOXEL_LOC> {
+  int64_t operator()(const VOXEL_LOC &s) const {
+    using std::hash;
+    using std::size_t;
+    return ((((s.z) * HASH_P) % MAX_N + (s.y)) * HASH_P) % MAX_N + (s.x);
+  }
+};
 
 namespace pcpr {
 
@@ -34,6 +70,28 @@ auto ptXyziToVec3d(
 auto ptXyzToVec3d(
   const pcl::PointXYZ &pi)
   -> Eigen::Vector3d;
+
+auto get_cloud_mean_std_xyz(
+  const pcl::PointCloud<pcl::PointXYZ> & cloud)
+  ->std::tuple<Eigen::Vector3f, float>;
+
+auto normalize_cloud_xyz(
+  const pcl::PointCloud<pcl::PointXYZ> & cloud)
+  -> pcl::PointCloud<pcl::PointXYZ>;
+
+auto voxelized_downsampling_xyz(
+  const pcl::PointCloud<pcl::PointXYZ> & cloud,
+  const double & voxel_size)
+  -> pcl::PointCloud<pcl::PointXYZ>;
+
+
+void write_scan_bin_xyz(
+  const std::string & scan_fn,
+  const pcl::PointCloud<pcl::PointXYZ> & cloud);
+
+void write_scan_bin_xyzi(
+  const std::string & scan_fn,
+  const pcl::PointCloud<pcl::PointXYZI> & cloud);
 
 auto strip(
   const std::string & str)

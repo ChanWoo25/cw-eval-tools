@@ -13,8 +13,11 @@ namespace pcpr {
 
 void preprocess_boreas(
   const fs::path & root_dir,
+  const std::vector<std::string> & seqs,
   const std::string & mode,
   const int & n_samples,
+  const double & ground,
+  const double & sphere,
   const double & interval)
 {
   spdlog::info("[preprocess_boreas] Start");
@@ -32,84 +35,84 @@ void preprocess_boreas(
       root_dir.string());
     return;
   }
-
-  const auto parent_dir = root_dir.parent_path();
-  const auto processed_dir =
-    parent_dir
-    / (root_dir.filename().string() + "_processed")
-    / fmt::format("{}_n{}_i{}", mode, n_samples, interval);
-  fs::create_directories(processed_dir);
-  spdlog::info(
-    "[preprocess_boreas] create directoreis ({})",
-    processed_dir.string());
-
-  const auto lidar_poses_fn = root_dir / "applanix" / "lidar_poses.csv";
-  const auto new_lidar_poses_fn = processed_dir / "lidar_poses.csv";
-  if (!fs::exists(lidar_poses_fn))
+  if (seqs[0].empty())
   {
     spdlog::error(
-      "lidar_poses_fn doesn't exist! ({})",
-      lidar_poses_fn.string());
+      "Seqs are empty! Type some sequence names!");
     return;
   }
-  fs::copy(lidar_poses_fn, new_lidar_poses_fn);
-  spdlog::info(
-    "[preprocess_boreas] copy lidar_poses into ({})",
-    new_lidar_poses_fn.string());
 
-  // const auto processed_scan_dir = processed_dir / "scans";
-  // fs::create_directory(processed_scan_dir);
-  // auto dit = fs::directory_iterator(root_dir);
-  // for (const auto & entry : dit)
-  // {
-  //   const auto scan_name = entry.path().filename().string();
-  //   const auto src_scan_fn = entry.path().string();
-  //   const auto new_scan_fn = (processed_scan_dir / scan_name).string();
 
-  //   spdlog::info("Process {} ...", new_scan_fn);
+  spdlog::info("Throw ground: {}", ground);
+  spdlog::info("Throw sphere: {}", sphere);
 
-  //   auto cloud = read_boreas_scan(src_scan_fn);
+  const auto parent_dir = root_dir.parent_path();
+  const auto new_root_dir =
+    parent_dir
+    / fmt::format("{}_{}_n{}_i{}",
+        root_dir.filename().string(),
+        mode, n_samples,
+        interval);
+  fs::create_directory(new_root_dir);
 
-  //   /* Segment Ground */
-  //   auto coefficients = std::make_shared<pcl::ModelCoefficients>();
-  //   auto inliers = std::make_shared<pcl::PointIndices>();
-  //   // pcl::ModelCoefficients::Ptr coefficients(new pcl::ModelCoefficients);
-  //   // pcl::PointIndices::Ptr inliers(new pcl::PointIndices);
-  //   pcl::SACSegmentation<pcl::PointXYZI> seg;
-  //   seg.setOptimizeCoefficients(true);
-  //   seg.setModelType(pcl::SACMODEL_PLANE);
-  //   seg.setMethodType(pcl::SAC_RANSAC);
-  //   // seg.setMaxIterations(1000);
-  //   seg.setDistanceThreshold(0.5);
-  //   seg.setInputCloud(cloud.makeShared());
+  for (const auto & seq: seqs)
+  {
+    const auto seq_dir = root_dir / seq;
+    if (   !fs::exists(seq_dir)
+        || !fs::is_directory(seq_dir))
+    {
+      spdlog::error(
+        "Seq '{}' doesn't exist!",
+        seq_dir.string());
+      return;
+    }
 
-  //   seg.segment(*inliers, *coefficients);
+    const auto new_seq_dir = new_root_dir / seq;
+    fs::create_directories(new_seq_dir / "lidar");
+    spdlog::info(
+      "[preprocess_boreas] create directoreis ({})",
+      new_root_dir.string());
 
-  //   pcl::ExtractIndices<pcl::PointXYZI> extract_ground;
-  //   // pcl::ExtractIndices<pcl::PointXYZI> extract_inform;
-  //   extract_ground.setInputCloud(cloud.makeShared());
-  //   // extract_inform.setInputCloud(cloud.makeShared());
-  //   extract_ground.setIndices(inliers);
-  //   // extract_inform.setIndices(inliers);
-  //   extract_ground.setNegative(false); // Extract the ground points
-  //   // extract_inform.setNegative(true); // Extract the ground points
-  //   auto ground_cloud = std::make_shared<pcl::PointCloud<pcl::PointXYZI>>();
-  //   auto inform_cloud = std::make_shared<pcl::PointCloud<pcl::PointXYZI>>();
-  //   extract_ground.filter(*ground_cloud);
+    const auto lidar_poses_fn = seq_dir / "applanix" / "lidar_poses.csv";
+    const auto new_lidar_poses_fn = new_seq_dir / "lidar_poses.csv";
+    if (!fs::exists(lidar_poses_fn))
+    {
+      spdlog::error(
+        "lidar_poses_fn doesn't exist! ({})",
+        lidar_poses_fn.string());
+      return;
+    }
+    if (!fs::exists(new_lidar_poses_fn))
+    {
+      fs::copy(lidar_poses_fn, new_lidar_poses_fn);
+      spdlog::info(
+        "[preprocess_boreas] copy lidar_poses into ({})",
+        new_lidar_poses_fn.string());
+    }
 
-  //   extract_ground.setNegative(true); // Extract the ground points
-  //   extract_ground.filter(*inform_cloud);
-  //   spdlog::info("ground points: {}", ground_cloud->points.size());
-  //   spdlog::info("not ground points: {}", inform_cloud->points.size());
-  //   // extract_inform.filter(*inform_cloud);
+    const auto lists
+      = pcpr::read_scan_list_boreas(new_lidar_poses_fn, interval);
+    for (const auto & meta: lists)
+    {
+      const auto scan_path = root_dir / seq / "lidar" / meta.path;
+      const auto scan_fn = scan_path.string();
+      auto cloud = pcpr::read_boreas_scan(scan_fn, ground, sphere);
+      spdlog::info(
+        "Read {} | n_pts: {}",
+        scan_fn, cloud.size());
 
-  //   auto downsampled = downsamplingUntilTargetNumPoints(*inform_cloud, target_num_points);
-  //   auto normalized = normalizeCloud(downsampled);
-  //   writeScanBinary(new_scan_fn, normalized);
-  // }
+      auto downsampled = downsampling_xyz(cloud, n_samples);
+      auto normalized = normalize_cloud_xyz(downsampled);
+
+      const auto new_scan_path = new_seq_dir / "lidar" / meta.path;
+      spdlog::info(
+        "Norm {} | n_pts: {}",
+        new_scan_path.string(), normalized.size());
+      write_scan_bin_xyz(new_scan_path.string(), normalized);
+    }
+  }
 }
 
-}; // namespace pcpr
 
 
 
@@ -175,97 +178,65 @@ void preprocess_boreas(
 //   fmt::print("[readLidarData] Fin Scan '{}'\n", scan_fns.back());
 // }
 
-// #define HASH_P 116101
-// #define MAX_N 10000000000
-
-// class VOXEL_LOC {
-// public:
-//   int64_t x, y, z;
-
-//   VOXEL_LOC(int64_t vx = 0, int64_t vy = 0, int64_t vz = 0)
-//       : x(vx), y(vy), z(vz) {}
-
-//   bool operator==(const VOXEL_LOC &other) const {
-//     return (x == other.x && y == other.y && z == other.z);
-//   }
-// };
-
-// // for down sample function
-// struct M_POINT {
-//   float xyz[3];
-//   float intensity;
-//   int count = 0;
-// };
-
-// // Hash value
-
-// template <> struct std::hash<VOXEL_LOC> {
-//   int64_t operator()(const VOXEL_LOC &s) const {
-//     using std::hash;
-//     using std::size_t;
-//     return ((((s.z) * HASH_P) % MAX_N + (s.y)) * HASH_P) % MAX_N + (s.x);
-//   }
-// };
-
-// auto voxelizedDownsampling(
-//   const pcl::PointCloud<pcl::PointXYZI> & cloud,
-//   const double & voxel_size)
-//   -> pcl::PointCloud<pcl::PointXYZI>
-// {
-//   /* Construct Voxel Map => Reduced Size */
-//   std::unordered_map<VOXEL_LOC, M_POINT> voxel_map;
-//   size_t plsize = cloud.size();
-//   for (size_t i = 0; i < plsize; i++)
-//   {
-//     const pcl::PointXYZI & p_c = cloud[i];
-//     float loc_xyz[3];
-//     for (int j = 0; j < 3; j++)
-//     {
-//       loc_xyz[j] = p_c.data[j] / voxel_size;
-//       if (loc_xyz[j] < 0)
-//       {
-//         loc_xyz[j] -= 1.0;
-//       }
-//     }
-//     VOXEL_LOC position(
-//       (int64_t)loc_xyz[0],
-//       (int64_t)loc_xyz[1],
-//       (int64_t)loc_xyz[2]);
-//     auto iter = voxel_map.find(position);
-//     if (iter != voxel_map.end())
-//     {
-//       iter->second.xyz[0] += p_c.x;
-//       iter->second.xyz[1] += p_c.y;
-//       iter->second.xyz[2] += p_c.z;
-//       iter->second.intensity += p_c.intensity;
-//       iter->second.count++;
-//     }
-//     else
-//     {
-//       M_POINT anp;
-//       anp.xyz[0] = p_c.x;
-//       anp.xyz[1] = p_c.y;
-//       anp.xyz[2] = p_c.z;
-//       anp.intensity = p_c.intensity;
-//       anp.count = 1;
-//       voxel_map[position] = anp;
-//     }
-//   }
-//   /* Copy to return cloud */
-//   auto new_sz = voxel_map.size();
-//   pcl::PointCloud<pcl::PointXYZI> downsampled;
-//   downsampled.resize(new_sz);
-//   size_t i = 0UL;
-//   for (auto iter = voxel_map.begin(); iter != voxel_map.end(); ++iter)
-//   {
-//     downsampled[i].x = iter->second.xyz[0] / iter->second.count;
-//     downsampled[i].y = iter->second.xyz[1] / iter->second.count;
-//     downsampled[i].z = iter->second.xyz[2] / iter->second.count;
-//     downsampled[i].intensity = iter->second.intensity / iter->second.count;
-//     i++;
-//   }
-//   return downsampled;
-// }
+auto voxelizedDownsampling(
+  const pcl::PointCloud<pcl::PointXYZI> & cloud,
+  const double & voxel_size)
+  -> pcl::PointCloud<pcl::PointXYZI>
+{
+  /* Construct Voxel Map => Reduced Size */
+  std::unordered_map<VOXEL_LOC, M_POINT> voxel_map;
+  size_t plsize = cloud.size();
+  for (size_t i = 0; i < plsize; i++)
+  {
+    const pcl::PointXYZI & p_c = cloud[i];
+    float loc_xyz[3];
+    for (int j = 0; j < 3; j++)
+    {
+      loc_xyz[j] = p_c.data[j] / voxel_size;
+      if (loc_xyz[j] < 0)
+      {
+        loc_xyz[j] -= 1.0;
+      }
+    }
+    VOXEL_LOC position(
+      (int64_t)loc_xyz[0],
+      (int64_t)loc_xyz[1],
+      (int64_t)loc_xyz[2]);
+    auto iter = voxel_map.find(position);
+    if (iter != voxel_map.end())
+    {
+      iter->second.xyz[0] += p_c.x;
+      iter->second.xyz[1] += p_c.y;
+      iter->second.xyz[2] += p_c.z;
+      iter->second.intensity += p_c.intensity;
+      iter->second.count++;
+    }
+    else
+    {
+      M_POINT anp;
+      anp.xyz[0] = p_c.x;
+      anp.xyz[1] = p_c.y;
+      anp.xyz[2] = p_c.z;
+      anp.intensity = p_c.intensity;
+      anp.count = 1;
+      voxel_map[position] = anp;
+    }
+  }
+  /* Copy to return cloud */
+  auto new_sz = voxel_map.size();
+  pcl::PointCloud<pcl::PointXYZI> downsampled;
+  downsampled.resize(new_sz);
+  size_t i = 0UL;
+  for (auto iter = voxel_map.begin(); iter != voxel_map.end(); ++iter)
+  {
+    downsampled[i].x = iter->second.xyz[0] / iter->second.count;
+    downsampled[i].y = iter->second.xyz[1] / iter->second.count;
+    downsampled[i].z = iter->second.xyz[2] / iter->second.count;
+    downsampled[i].intensity = iter->second.intensity / iter->second.count;
+    i++;
+  }
+  return downsampled;
+}
 
 // auto downsamplingUntilTargetNumPoints(
 //   const pcl::PointCloud<pcl::PointXYZI> & origin_cloud,
@@ -306,6 +277,44 @@ void preprocess_boreas(
 //   //   origin_cloud.size(), downsampled.size());
 //   return downsampled;
 // }
+
+auto downsampling_xyz(
+  const pcl::PointCloud<pcl::PointXYZ> & origin_cloud,
+  const size_t & target_size)
+  -> pcl::PointCloud<pcl::PointXYZ>
+{
+  double voxel_size = 1.001;
+  auto downsampled = voxelized_downsampling_xyz(origin_cloud, voxel_size);
+  while (downsampled.size() < target_size)
+  {
+    voxel_size -= 0.025;
+    if (voxel_size <= 0.001) { break; }
+    downsampled = voxelized_downsampling_xyz(origin_cloud, voxel_size);
+  }
+  while (downsampled.size() > target_size)
+  {
+    voxel_size += 0.025;
+    downsampled = voxelized_downsampling_xyz(origin_cloud, voxel_size);
+  }
+  /* Add extra random points */
+  if (downsampled.size() < target_size)
+  {
+    size_t n_add = target_size - downsampled.size();
+    std::random_device rd;
+    std::mt19937 mt(rd());
+    int low {0}, high {static_cast<int>(downsampled.size())-1};
+    // Define a range for random integers (e.g., between 1 and 100)
+    std::uniform_int_distribution<int> dist(low, high);
+    for (size_t i = 0; i < n_add; ++i)
+    {
+      int ri = dist(mt);
+      downsampled.push_back(downsampled.points[ri]);
+    }
+  }
+
+  return downsampled;
+}
+
 
 // pcl::PointXYZI vec2point(const Eigen::Vector3d &vec) {
 //   pcl::PointXYZI pi;
@@ -352,93 +361,78 @@ void preprocess_boreas(
 // }
 
 
-// auto getCloudMeanStd(
-//   const pcl::PointCloud<pcl::PointXYZI> & cloud)
-//   ->std::tuple<Eigen::Vector3f, float>
-// {
-//   if (cloud.points.empty()) { return {Eigen::Vector3f::Zero(), 0.0f}; }
-//   const auto n_pts = static_cast<float>(cloud.size());
-//   Eigen::Vector3f center = Eigen::Vector3f::Zero();
-//   for (const auto & point: cloud.points)
-//   {
-//     center(0) += point.x;
-//     center(1) += point.y;
-//     center(2) += point.z;
-//   }
-//   center /= n_pts;
-//   auto stddev = 0.0f;
-//   for (const auto & point: cloud.points)
-//   {
-//     stddev += std::sqrt(
-//       std::pow(point.x - center(0), 2.0f) +
-//       std::pow(point.y - center(1), 2.0f) +
-//       std::pow(point.z - center(2), 2.0f));
-//   }
-//   stddev /= n_pts;
-//   return {center, stddev};
-// }
+auto getCloudMeanStd(
+  const pcl::PointCloud<pcl::PointXYZI> & cloud)
+  ->std::tuple<Eigen::Vector3f, float>
+{
+  if (cloud.points.empty()) { return {Eigen::Vector3f::Zero(), 0.0f}; }
+  const auto n_pts = static_cast<float>(cloud.size());
+  Eigen::Vector3f center = Eigen::Vector3f::Zero();
+  for (const auto & point: cloud.points)
+  {
+    center(0) += point.x;
+    center(1) += point.y;
+    center(2) += point.z;
+  }
+  center /= n_pts;
+  auto stddev = 0.0f;
+  for (const auto & point: cloud.points)
+  {
+    stddev += std::sqrt(
+      std::pow(point.x - center(0), 2.0f) +
+      std::pow(point.y - center(1), 2.0f) +
+      std::pow(point.z - center(2), 2.0f));
+  }
+  stddev /= n_pts;
+  return {center, stddev};
+}
 
-// auto normalizeCloud(
-//   const pcl::PointCloud<pcl::PointXYZI> & cloud)
-//   -> pcl::PointCloud<pcl::PointXYZI>
-// {
-//   const auto N = cloud.size();
-//   const auto [center, d] = getCloudMeanStd(cloud);
-//   pcl::PointCloud<pcl::PointXYZI> normalized;
-//   normalized.reserve(N);
-//   for (const auto & point: cloud.points)
-//   {
-//     auto nx = (point.x - center(0)) / (2.0f * d);
-//     auto ny = (point.y - center(1)) / (2.0f * d);
-//     auto nz = (point.z - center(2)) / (2.0f * d);
-//     if (   -1.0 <= nx && nx <= 1.0
-//         && -1.0 <= ny && ny <= 1.0
-//         && -1.0 <= nz && nz <= 1.0)
-//     {
-//       pcl::PointXYZI point;
-//       point.x = nx;
-//       point.y = ny;
-//       point.z = nz;
-//       normalized.push_back(point);
-//     }
-//   }
+auto normalizeCloud(
+  const pcl::PointCloud<pcl::PointXYZI> & cloud)
+  -> pcl::PointCloud<pcl::PointXYZI>
+{
+  const auto N = cloud.size();
+  const auto [center, d] = getCloudMeanStd(cloud);
+  pcl::PointCloud<pcl::PointXYZI> normalized;
+  normalized.reserve(N);
+  for (const auto & point: cloud.points)
+  {
+    auto nx = (point.x - center(0)) / (2.0f * d);
+    auto ny = (point.y - center(1)) / (2.0f * d);
+    auto nz = (point.z - center(2)) / (2.0f * d);
+    if (   -1.0 <= nx && nx <= 1.0
+        && -1.0 <= ny && ny <= 1.0
+        && -1.0 <= nz && nz <= 1.0)
+    {
+      pcl::PointXYZI point;
+      point.x = nx;
+      point.y = ny;
+      point.z = nz;
+      normalized.push_back(point);
+    }
+  }
 
-//   /* Add extra random points */
-//   if (normalized.size() < N)
-//   {
-//     size_t n_add = N - normalized.size();
-//     // fmt::print("[normalizeCloud] Still {} points are required.\n", n_add);
-//     std::random_device rd;
-//     std::mt19937 mt(rd());
-//     int low {0}, high {static_cast<int>(normalized.size())-1};
-//     // ROS_ASSERT (low <= high);
-//     // Define a range for random integers (e.g., between 1 and 100)
-//     std::uniform_int_distribution<int> dist(low, high);
-//     for (size_t i = 0; i < n_add; ++i)
-//     {
-//       int ri = dist(mt);
-//       normalized.push_back(normalized.points[ri]);
-//     }
-//   }
-//   // ROS_ASSERT(normalized.size() == N);
-//   return normalized;
-// }
+  /* Add extra random points */
+  if (normalized.size() < N)
+  {
+    size_t n_add = N - normalized.size();
+    // fmt::print("[normalizeCloud] Still {} points are required.\n", n_add);
+    std::random_device rd;
+    std::mt19937 mt(rd());
+    int low {0}, high {static_cast<int>(normalized.size())-1};
+    // ROS_ASSERT (low <= high);
+    // Define a range for random integers (e.g., between 1 and 100)
+    std::uniform_int_distribution<int> dist(low, high);
+    for (size_t i = 0; i < n_add; ++i)
+    {
+      int ri = dist(mt);
+      normalized.push_back(normalized.points[ri]);
+    }
+  }
 
-// void writeScanBinary(
-//   const std::string & scan_fn,
-//   const pcl::PointCloud<pcl::PointXYZI> & cloud)
-// {
-//   std::ofstream f_scan(scan_fn, std::ios::out | std::ios::binary);
-//   // ROS_ASSERT(f_scan.is_open());
-//   for (const auto & point : cloud.points)
-//   {
-//     f_scan.write(reinterpret_cast<const char *>(&point.x), sizeof(float));
-//     f_scan.write(reinterpret_cast<const char *>(&point.y), sizeof(float));
-//     f_scan.write(reinterpret_cast<const char *>(&point.z), sizeof(float));
-//     f_scan.write(reinterpret_cast<const char *>(&point.intensity), sizeof(float));
-//   }
-//   f_scan.close();
-// }
+  return normalized;
+}
+
 
 // void processSequence(
 //   const std::string & seq_dir,
@@ -712,3 +706,5 @@ void preprocess_boreas(
 
 //   return EXIT_SUCCESS;
 // }
+
+}; // namespace pcpr

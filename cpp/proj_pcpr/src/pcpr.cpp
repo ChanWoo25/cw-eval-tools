@@ -1,5 +1,6 @@
 #include <pcpr.hpp>
 #include <random>
+#include <spdlog/spdlog.h>
 
 namespace pcpr {
 
@@ -37,6 +38,176 @@ auto ptXyzToVec3d(
   -> Eigen::Vector3d
 {
   return Eigen::Vector3d(pi.x, pi.y, pi.z);
+}
+
+auto get_cloud_mean_std_xyz(
+  const pcl::PointCloud<pcl::PointXYZ> & cloud)
+  ->std::tuple<Eigen::Vector3f, float>
+{
+  if (cloud.points.empty()) { return {Eigen::Vector3f::Zero(), 0.0f}; }
+  const auto n_pts = static_cast<float>(cloud.size());
+  Eigen::Vector3f center = Eigen::Vector3f::Zero();
+  for (const auto & point: cloud.points)
+  {
+    center(0) += point.x;
+    center(1) += point.y;
+    center(2) += point.z;
+  }
+  center /= n_pts;
+  auto stddev = 0.0f;
+  for (const auto & point: cloud.points)
+  {
+    stddev += std::sqrt(
+      std::pow(point.x - center(0), 2.0f) +
+      std::pow(point.y - center(1), 2.0f) +
+      std::pow(point.z - center(2), 2.0f));
+  }
+  stddev /= n_pts;
+  return {center, stddev};
+}
+
+auto normalize_cloud_xyz(
+  const pcl::PointCloud<pcl::PointXYZ> & cloud)
+  -> pcl::PointCloud<pcl::PointXYZ>
+{
+  const auto N = cloud.size();
+  const auto [center, d] = get_cloud_mean_std_xyz(cloud);
+
+  // spdlog::info("[normalize_cloud_xyz] mean: {}, std: {}", center, d);
+
+  pcl::PointCloud<pcl::PointXYZ> normalized;
+  normalized.reserve(N);
+  for (const auto & point: cloud.points)
+  {
+    auto nx = (point.x - center(0)) / (2.0f * d);
+    auto ny = (point.y - center(1)) / (2.0f * d);
+    auto nz = (point.z - center(2)) / (2.0f * d);
+    if (   -1.0 <= nx && nx <= 1.0
+        && -1.0 <= ny && ny <= 1.0
+        && -1.0 <= nz && nz <= 1.0)
+    {
+      pcl::PointXYZ point;
+      point.x = nx;
+      point.y = ny;
+      point.z = nz;
+      normalized.push_back(point);
+    }
+  }
+  // spdlog::info("[normalize_cloud_xyz] Step 1 size: ", normalized.size());
+
+  /* Add extra random points */
+  if (normalized.size() < N)
+  {
+    size_t n_add = N - normalized.size();
+    // fmt::print("[normalizeCloud] Still {} points are required.\n", n_add);
+    std::random_device rd;
+    std::mt19937 mt(rd());
+    int low {0}, high {static_cast<int>(normalized.size())-1};
+
+    // Define a range for random integers (e.g., between 1 and 100)
+    std::uniform_int_distribution<int> dist(low, high);
+    for (size_t i = 0; i < n_add; ++i)
+    {
+      int ri = dist(mt);
+      normalized.push_back(normalized.points[ri]);
+    }
+  }
+  // spdlog::info("[normalize_cloud_xyz] Step 2 size: ", normalized.size());
+
+  return normalized;
+}
+
+auto voxelized_downsampling_xyz(
+  const pcl::PointCloud<pcl::PointXYZ> & cloud,
+  const double & voxel_size)
+  -> pcl::PointCloud<pcl::PointXYZ>
+{
+  /* Construct Voxel Map => Reduced Size */
+  std::unordered_map<VOXEL_LOC, M_POINT> voxel_map;
+  size_t plsize = cloud.size();
+  for (size_t i = 0; i < plsize; i++)
+  {
+    const pcl::PointXYZ & p_c = cloud[i];
+    float loc_xyz[3];
+    for (int j = 0; j < 3; j++)
+    {
+      loc_xyz[j] = p_c.data[j] / voxel_size;
+      if (loc_xyz[j] < 0)
+      {
+        loc_xyz[j] -= 1.0;
+      }
+    }
+    VOXEL_LOC position(
+      (int64_t)loc_xyz[0],
+      (int64_t)loc_xyz[1],
+      (int64_t)loc_xyz[2]);
+    auto iter = voxel_map.find(position);
+    if (iter != voxel_map.end())
+    {
+      iter->second.xyz[0] += p_c.x;
+      iter->second.xyz[1] += p_c.y;
+      iter->second.xyz[2] += p_c.z;
+      iter->second.count++;
+    }
+    else
+    {
+      M_POINT anp;
+      anp.xyz[0] = p_c.x;
+      anp.xyz[1] = p_c.y;
+      anp.xyz[2] = p_c.z;
+      anp.count = 1;
+      voxel_map[position] = anp;
+    }
+  }
+  /* Copy to return cloud */
+  auto new_sz = voxel_map.size();
+  pcl::PointCloud<pcl::PointXYZ> downsampled;
+  downsampled.resize(new_sz);
+  size_t i = 0UL;
+  for (auto iter = voxel_map.begin(); iter != voxel_map.end(); ++iter)
+  {
+    downsampled[i].x = iter->second.xyz[0] / iter->second.count;
+    downsampled[i].y = iter->second.xyz[1] / iter->second.count;
+    downsampled[i].z = iter->second.xyz[2] / iter->second.count;
+    i++;
+  }
+  return downsampled;
+}
+
+void write_scan_bin_xyz(
+  const std::string & scan_fn,
+  const pcl::PointCloud<pcl::PointXYZ> & cloud)
+{
+  std::ofstream f_scan(scan_fn, std::ios::out | std::ios::binary);
+  if (!f_scan.is_open()) {
+    spdlog::error("{} is not opened!", scan_fn);
+  }
+
+  for (const auto & point : cloud.points)
+  {
+    f_scan.write(reinterpret_cast<const char *>(&point.x), sizeof(float));
+    f_scan.write(reinterpret_cast<const char *>(&point.y), sizeof(float));
+    f_scan.write(reinterpret_cast<const char *>(&point.z), sizeof(float));
+  }
+  f_scan.close();
+}
+
+void write_scan_bin_xyzi(
+  const std::string & scan_fn,
+  const pcl::PointCloud<pcl::PointXYZI> & cloud)
+{
+  std::ofstream f_scan(scan_fn, std::ios::out | std::ios::binary);
+  if (!f_scan.is_open()) {
+    spdlog::error("{} is not opened!", scan_fn);
+  }
+  for (const auto & point : cloud.points)
+  {
+    f_scan.write(reinterpret_cast<const char *>(&point.x), sizeof(float));
+    f_scan.write(reinterpret_cast<const char *>(&point.y), sizeof(float));
+    f_scan.write(reinterpret_cast<const char *>(&point.z), sizeof(float));
+    f_scan.write(reinterpret_cast<const char *>(&point.intensity), sizeof(float));
+  }
+  f_scan.close();
 }
 
 auto strip(
